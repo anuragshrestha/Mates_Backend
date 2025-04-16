@@ -366,5 +366,51 @@ router.post('/refresh-token', async (req, res) => {
 });
 
 
+/**
+ * post: forgot-password
+ * 
+ */
+
+router.post('/forgot-password', async(req, res) => {
+  
+  console.log('hit forgot password api');
+  
+  const {username} = req.body;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+  
+  //checks if the email is a valid school email: .edu
+  if(!emailRegex.test(username)){
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid email format. Please provide a valid school email.'
+    })
+  };
+
+  const params = {
+    ClientId : CLIENT_ID,
+    Username: username 
+  };
+
+  try{
+    //create new command for ForgotPassword.
+    const command = new ForgotPasswordCommand(params);
+
+    //send the command to cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: 'Successfully send the code for forgot password.',
+      data: response
+    });
+  }catch(err){
+     res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to send forgot password code.'
+     })
+  }
+});
+
+
 
 module.exports = router;
