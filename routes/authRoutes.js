@@ -23,6 +23,7 @@ const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const pool = require("../database/db");
+const { Client } = require("pg");
 
 require("dotenv").config();
 
@@ -245,7 +246,124 @@ router.post('/resend-confirmation-code', async(req, res) => {
   }
 });
 
+/**
+ * 1) signin : check if the user is not confirmed
+ * 2) forgot password
+ * 3) confirm - forgot password
+ */
 
+/**
+ * post: signIn route
+ * extracts the username, password from request body
+ * Initiate the Auth and send the command to cognito.
+ * returns success otherwise checks if the user is already
+ * confirmed, or if the provided credentials is invalid.
+ */
+
+router.post('/signin', async(req, res) => {
+   
+  console.log("hit signin api");
+  
+  const {username, password} = req.body;
+
+  const params = {
+    AuthFlow: 'USER_PASSWORD_AUTH',
+    ClientId : CLIENT_ID,
+    AuthParameters: {
+      USERNAME: username,
+      PASSWORD: password
+    }
+  };
+
+  try{
+   
+    //Initiate new auth command with the given paramters.
+    const command = new InitiateAuthCommand(params);
+
+    //send the command to the cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: "Successfully sign in the user",
+      data: response
+    });
+  }catch(err){
+   console.log(('error: ', err));
+   
+   //checks if the user account is not confirmed.
+   if(err.name === 'UserNotConfirmedException'){
+     return res.status(403).json({
+      success: false,
+      error: "Account not confirmed. Please confrimed the account."
+     });
+   }
+   
+
+   //checks if the user email and password is invalid.
+   if(err.name === 'NotAuthorizedException'){
+    return res.status(401).json({
+      success: false,
+      error: "Invalid credentials. Please enter valid email or password."
+    });
+   }
+   
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Sign in failed'
+    });
+
+  }
+});
+
+/**
+ * post: resfresh-token route
+ * checks if the there is refresh token.
+ * if there is a refresh token, then 
+ * initiate new auth and returns new access token and id token.
+ */
+router.post('/refresh-token', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      message: "Refresh token is required."
+    });
+  }
+
+  const params = {
+    AuthFlow: 'REFRESH_TOKEN_AUTH',
+    ClientId: CLIENT_ID,
+    AuthParameters: {
+      REFRESH_TOKEN: refreshToken
+    }
+  };
+
+  try {
+    const command = new InitiateAuthCommand(params);
+    const response = await cognitoClient.send(command);
+    console.log("hit refresh token ", response);
+    
+    res.status(200).json({
+      success: true,
+      message: "Tokens refreshed successfully",
+      tokens: {
+        accessToken: response.AuthenticationResult.AccessToken,
+        idToken: response.AuthenticationResult.IdToken,
+        tokenType: response.AuthenticationResult.TokenType,
+        expiresIn: response.AuthenticationResult.ExpiresIn
+      }
+    });
+
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    res.status(401).json({
+      success: false,
+      message: "Failed to refresh token. Please log in again.",
+      error: error.message
+    });
+  }
+});
 
 
 
