@@ -13,6 +13,7 @@ const {
   CognitoIdentityProviderClient,
   SignUpCommand,
   ConfirmSignUpCommand,
+  ResendConfirmationCodeCommand,
   InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
@@ -73,7 +74,7 @@ router.post("/signup", async (req, res) => {
   if (!emailRegex.test(username)) {
     return res
       .status(400)
-      .json({ message: "Email must be a valid school email address" });
+      .json({error: "Email must be a valid school email address" });
   }
 
   const full_name = `${first_name} ${last_name}`;
@@ -104,7 +105,7 @@ router.post("/signup", async (req, res) => {
     if (exitingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: "User already registered in database.",
+        error: "User already registered in database.",
       });
     }
 
@@ -127,13 +128,12 @@ router.post("/signup", async (req, res) => {
     if (error.name === "UsernameExitsException") {
       return res.status(409).json({
         success: false,
-        message: "This email adress already exits.",
+        error: "This email adress already exits.",
       });
     }
     res.status(400).json({
       success: false,
-      message: "Failed to Signup the user",
-      error: error.message,
+      error: error.message || "Failed to Signup the user",
     });
   }
 });
@@ -176,7 +176,7 @@ router.post("/confirm-Signup", async (req, res) => {
     if (error.name === 'ExpiredCodeException'){
       return res.status(400).json({
         success:false,
-        message:"Code is experied. Please request a new code again."
+        error:"Code is experied. Please request a new code again."
       })
     }
 
@@ -187,15 +187,66 @@ router.post("/confirm-Signup", async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "User is already confirmed. Please log in.",
+        error: "User is already confirmed. Please log in.",
       });
     }
     res.status(400).json({
       success: false,
-      message: "User can't be confirmed successfully",
-      error: error.message,
+      error: error.message || "User can't be confirmed successfully",
     });
   }
 });
+
+
+
+/**
+ * post: resend-confirmationCode
+ * extracts the email from request body
+ * checks if its a valid .edu school email
+ * creates new ResendConfirmationCodeCommand and
+ * sends the code to the assocaited email using the 
+ * cognito client.
+ */
+
+router.post('/resend-confirmation-code', async(req, res) => {
+
+  const {username} = req.body;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+ 
+  //checks if the email is a valid .edu address
+  if(!emailRegex.test(username)){
+    res.status(400).json({
+      success: false,
+      error: "Invalid email. Email address should be .edu address"
+    })
+  };
+
+  const params = {
+    ClientId: CLIENT_ID,
+    Username: username
+  };
+
+  try{
+    const command = new ResendConfirmationCodeCommand(params);
+    const response = await cognitoClient.send(command);
+    console.log("response", response);
+    
+    res.status(200).json({
+      success: true,
+      message: "Successfully send the reset code.",
+      data: response
+    })
+  }catch(error){
+    res.status(400).json({
+      success: false,
+      error: error.message || "Failed to send confirmation code."
+    })
+  }
+});
+
+
+
+
 
 module.exports = router;
