@@ -44,17 +44,18 @@ const awsConfig = {
 //creates instance of Cognito client to send the request to Amazon Cognito User pool
 const cognitoClient = new CognitoIdentityProviderClient(awsConfig);
 
-
 /**
  * post: /signup route
  * the client sends, University name, major, school year, first and last name,
  * email (must be .edu email) and password.
- * send the paramaters to the cognito client.
+ * checks if the user already exits in the database, if so then return error 409.
+ * Otherwise, create new accoount using AWS Cognito and saves the user data in `users`
+ * table in postgres.
  */
-router.post('/signup', async (req, res) => {
 
-    console.log("req:", req);
-    
+router.post("/signup", async (req, res) => {
+  console.log("req:", req);
+
   //data that we get from the body
   const {
     university_name,
@@ -67,8 +68,6 @@ router.post('/signup', async (req, res) => {
   } = req.body;
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
-
-  
 
   //verify if the email is a valid school email address
   if (!emailRegex.test(username)) {
@@ -96,19 +95,18 @@ router.post('/signup', async (req, res) => {
   };
 
   try {
-    
     //checks if the user already exits in database.
     const exitingUser = await pool.query(
       `SELECT * FROM users WHERE email = $1`,
       [username]
     );
-    
-    if (exitingUser.rows.length > 0){
+
+    if (exitingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: "User already registered in database."
-      })
-    };
+        message: "User already registered in database.",
+      });
+    }
 
     //writting new SignUp command
     const command = new SignUpCommand(params);
@@ -121,16 +119,16 @@ router.post('/signup', async (req, res) => {
     await pool.query(
       `INSERT INTO users (email, full_name, university_name, major, school_year)
        VALUES ($1, $2, $3, $4, $5)`,
-       [username,full_name,university_name,major,school_year]
+      [username, full_name, university_name, major, school_year]
     );
 
     res.json({ success: true, message: "User Signup successfully", result });
   } catch (error) {
-    if (error.name === 'UsernameExitsException'){
+    if (error.name === "UsernameExitsException") {
       return res.status(409).json({
         success: false,
-        message: "This email adress already exits."
-      })
+        message: "This email adress already exits.",
+      });
     }
     res.status(400).json({
       success: false,
@@ -140,5 +138,64 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+/**
+ * post: confirm route
+ * extracts the username and confirmation code from the request body
+ * creates a new confirmation signup command and sends it to cognito
+ * if success then return status 200 else 400.
+ */
+
+router.post("/confirm-Signup", async (req, res) => {
+  //extracts the username and confirmation code from the request body
+  const { username, confirmationCode } = req.body;
+
+  //parameters to send to cognito
+  const params = {
+    ClientId: CLIENT_ID,
+    Username: username,
+    ConfirmationCode: confirmationCode,
+  };
+
+  try {
+    //creates new ConfirmationSignup command
+    const command = new ConfirmSignUpCommand(params);
+
+    //sends the command to cognito for verification.
+    const response = await cognitoClient.send(command);
+    console.log("user confirmed successfully.");
+
+    res.json({
+      success: true,
+      message: "User confirmed successfully",
+      data: response,
+    });
+  } catch (error) {
+    console.log(error);
+    
+    //checks if the code is already expired.
+    if (error.name === 'ExpiredCodeException'){
+      return res.status(400).json({
+        success:false,
+        message:"Code is experied. Please request a new code again."
+      })
+    }
+
+    //checks if the users is already confirmed.
+    if (
+      error.name === "NotAuthorizedException" &&
+      error.message.includes("Current status is CONFIRMED")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already confirmed. Please log in.",
+      });
+    }
+    res.status(400).json({
+      success: false,
+      message: "User can't be confirmed successfully",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;
