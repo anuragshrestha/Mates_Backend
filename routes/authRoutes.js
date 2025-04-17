@@ -368,7 +368,10 @@ router.post('/refresh-token', async (req, res) => {
 
 /**
  * post: forgot-password
- * 
+ * extracts the email and check if it's a vaid school email.
+ * If it is then it creates a new command for forgot password and
+ * send it to cognito. 
+ * After that, the user recieves a reset code.
  */
 
 router.post('/forgot-password', async(req, res) => {
@@ -410,6 +413,61 @@ router.post('/forgot-password', async(req, res) => {
      })
   }
 });
+
+
+/**
+ * post: confirm-forgot-password
+ * extracts the email, confirmation code and password from
+ * the request body. 
+ * check if none of them is empty.
+ * creates new command for confirmForgotPassword and send the 
+ * command to AWS Cognito. If success it returns status code: 200
+ * else status code: 400 
+ */
+
+
+router.post('/confirm-forgot-password', async(req, res) => {
+
+  const {username, confirmationCode, password} = req.body;
+  
+  console.log('hit confirm forgot password');
+  
+  //checks if either of the input is empty
+  if(!username || !confirmationCode || !password){
+    return res.status(400).json({
+      success: false,
+      error: 'Either email, confirmation code or password is empty.'
+    });
+  }
+ 
+  const params = {
+    ClientId : CLIENT_ID,
+    Username: username,
+    ConfirmationCode: confirmationCode,
+    Password: password
+  };
+
+  try{
+    const command = new ConfirmForgotPasswordCommand(params);
+
+    //send the command to AWS cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: 'Successfully reset password',
+      data: response
+    });
+  }catch(err){
+    console.log("error: ", err);
+    
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to reset password.'
+    });
+  }
+});
+
+
 
 
 
