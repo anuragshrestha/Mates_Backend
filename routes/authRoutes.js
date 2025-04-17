@@ -17,6 +17,7 @@ const {
   InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
+  GlobalSignOutCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
 const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
@@ -465,6 +466,52 @@ router.post('/confirm-forgot-password', async(req, res) => {
       error: err.message || 'Failed to reset password.'
     });
   }
+});
+
+
+/**
+ * post: signout route
+ * Extracts the accessToken and checks if its not empty.
+ * create new command for Signout and sends to AWS Cognito.
+ * If success, it sign out the user else returns the appropriate
+ * error.
+ */
+
+router.post('/signout', async(req, res) => {
+
+  const {accessToken} = req.body;
+  console.log('hit signout api');
+  
+
+  //checks if access token is empty
+  if(!accessToken){
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide access token'
+    });
+  }
+
+  const params = {
+    ClientId : CLIENT_ID,
+    AccessToken: accessToken
+  };
+  
+  try {
+    const command = new GlobalSignOutCommand(params);
+    const response = await cognitoClient.send(command);
+
+    res.status(200).json({
+      success: true,
+      message: 'User successfully signed out.',
+      data: response
+    });
+  }catch(err){
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to signedout user.'
+    });
+  }
+  
 });
 
 
