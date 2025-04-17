@@ -23,6 +23,7 @@ const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const pool = require("../database/db");
+const { Client } = require("pg");
 
 require("dotenv").config();
 
@@ -242,6 +243,227 @@ router.post('/resend-confirmation-code', async(req, res) => {
       success: false,
       error: error.message || "Failed to send confirmation code."
     })
+  }
+});
+
+/**
+ * 1) signin : check if the user is not confirmed
+ * 2) forgot password
+ * 3) confirm - forgot password
+ */
+
+/**
+ * post: signIn route
+ * extracts the username, password from request body
+ * Initiate the Auth and send the command to cognito.
+ * returns success otherwise checks if the user is already
+ * confirmed, or if the provided credentials is invalid.
+ */
+
+router.post('/signin', async(req, res) => {
+   
+  console.log("hit signin api");
+  
+  const {username, password} = req.body;
+
+  const params = {
+    AuthFlow: 'USER_PASSWORD_AUTH',
+    ClientId : CLIENT_ID,
+    AuthParameters: {
+      USERNAME: username,
+      PASSWORD: password
+    }
+  };
+
+  try{
+   
+    //Initiate new auth command with the given paramters.
+    const command = new InitiateAuthCommand(params);
+
+    //send the command to the cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: "Successfully sign in the user",
+      data: response
+    });
+  }catch(err){
+   console.log(('error: ', err));
+   
+   //checks if the user account is not confirmed.
+   if(err.name === 'UserNotConfirmedException'){
+     return res.status(403).json({
+      success: false,
+      error: "Account not confirmed. Please confrimed the account."
+     });
+   }
+   
+
+   //checks if the user email and password is invalid.
+   if(err.name === 'NotAuthorizedException'){
+    return res.status(401).json({
+      success: false,
+      error: "Invalid credentials. Please enter valid email or password."
+    });
+   }
+   
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Sign in failed'
+    });
+
+  }
+});
+
+/**
+ * post: resfresh-token route
+ * checks if the there is refresh token.
+ * if there is a refresh token, then 
+ * initiate new auth and returns new access token and id token.
+ */
+router.post('/refresh-token', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      message: "Refresh token is required."
+    });
+  }
+
+  const params = {
+    AuthFlow: 'REFRESH_TOKEN_AUTH',
+    ClientId: CLIENT_ID,
+    AuthParameters: {
+      REFRESH_TOKEN: refreshToken
+    }
+  };
+
+  try {
+    const command = new InitiateAuthCommand(params);
+    const response = await cognitoClient.send(command);
+    console.log("hit refresh token ", response);
+    
+    res.status(200).json({
+      success: true,
+      message: "Tokens refreshed successfully",
+      tokens: {
+        accessToken: response.AuthenticationResult.AccessToken,
+        idToken: response.AuthenticationResult.IdToken,
+        tokenType: response.AuthenticationResult.TokenType,
+        expiresIn: response.AuthenticationResult.ExpiresIn
+      }
+    });
+
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    res.status(401).json({
+      success: false,
+      message: "Failed to refresh token. Please log in again.",
+      error: error.message
+    });
+  }
+});
+
+
+/**
+ * post: forgot-password
+ * extracts the email and check if it's a vaid school email.
+ * If it is then it creates a new command for forgot password and
+ * send it to cognito. 
+ * After that, the user recieves a reset code.
+ */
+
+router.post('/forgot-password', async(req, res) => {
+  
+  console.log('hit forgot password api');
+  
+  const {username} = req.body;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+  
+  //checks if the email is a valid school email: .edu
+  if(!emailRegex.test(username)){
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid email format. Please provide a valid school email.'
+    })
+  };
+
+  const params = {
+    ClientId : CLIENT_ID,
+    Username: username 
+  };
+
+  try{
+    //create new command for ForgotPassword.
+    const command = new ForgotPasswordCommand(params);
+
+    //send the command to cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: 'Successfully send the code for forgot password.',
+      data: response
+    });
+  }catch(err){
+     res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to send forgot password code.'
+     })
+  }
+});
+
+
+/**
+ * post: confirm-forgot-password
+ * extracts the email, confirmation code and password from
+ * the request body. 
+ * check if none of them is empty.
+ * creates new command for confirmForgotPassword and send the 
+ * command to AWS Cognito. If success it returns status code: 200
+ * else status code: 400 
+ */
+
+
+router.post('/confirm-forgot-password', async(req, res) => {
+
+  const {username, confirmationCode, password} = req.body;
+  
+  console.log('hit confirm forgot password');
+  
+  //checks if either of the input is empty
+  if(!username || !confirmationCode || !password){
+    return res.status(400).json({
+      success: false,
+      error: 'Either email, confirmation code or password is empty.'
+    });
+  }
+ 
+  const params = {
+    ClientId : CLIENT_ID,
+    Username: username,
+    ConfirmationCode: confirmationCode,
+    Password: password
+  };
+
+  try{
+    const command = new ConfirmForgotPasswordCommand(params);
+
+    //send the command to AWS cognito
+    const response = await cognitoClient.send(command);
+    res.status(200).json({
+      success: true,
+      message: 'Successfully reset password',
+      data: response
+    });
+  }catch(err){
+    console.log("error: ", err);
+    
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to reset password.'
+    });
   }
 });
 
