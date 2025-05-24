@@ -5,18 +5,28 @@ const authRoutes = require('./routes/authRoutes');
 
 require("dotenv").config();
 
+
+
+console.log("Loading routes...");
+
 const app = express();
 const port = 4000;
 
-
-// parse the body in json
+console.log("Setting up middleware...");
 app.use(bodyParser.json());
 
-//Auth routes for Authentication
-app.use('/',authRoutes);
+console.log("Registering routes...");
+app.use('/', authRoutes);
 
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`server running on port ${port}`);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Rejection:', err);
 });
 

@@ -51,7 +51,7 @@ const cognitoClient = new CognitoIdentityProviderClient(awsConfig);
  * post: /signup route
  * the client sends, University name, major, school year, first and last name,
  * email (must be .edu email) and password.
- * checks if the user already exits in the database, if so then return error 409.
+ * checks if the user already exists in the database, if so then return error 409.
  * Otherwise, create new accoount using AWS Cognito and saves the user data in `users`
  * table in postgres.
  */
@@ -98,16 +98,18 @@ router.post("/signup", async (req, res) => {
   };
 
   try {
-    //checks if the user already exits in database.
+    //checks if the user already exists in database.
     const exitingUser = await pool.query(
       `SELECT * FROM users WHERE email = $1`,
       [username]
     );
 
     if (exitingUser.rows.length > 0) {
+      console.log("users already exists in database");
+      
       return res.status(409).json({
         success: false,
-        error: "User already registered in database.",
+        error: "Email already registered",
       });
     }
 
@@ -127,10 +129,12 @@ router.post("/signup", async (req, res) => {
 
     res.json({ success: true, message: "User Signup successfully", result });
   } catch (error) {
-    if (error.name === "UsernameExitsException") {
+    if (error.name === "UsernameExistsException") {
+      console.log("User already exits in cognito.");
+      
       return res.status(409).json({
         success: false,
-        error: "This email adress already exits.",
+        error: "Account already created",
       });
     }
     res.status(400).json({
@@ -169,7 +173,6 @@ router.post("/confirm-Signup", async (req, res) => {
     res.json({
       success: true,
       message: "User confirmed successfully",
-      data: response,
     });
   } catch (error) {
     console.log(error);
@@ -267,6 +270,11 @@ router.post('/signin', async(req, res) => {
   
   const {username, password} = req.body;
 
+  const user = await pool.query("SELECT * FROM users WHERE email = $1", [username]);
+  if (user.rows.length === 0){
+    return res.status(404).json({success: false, error: "User not found"})
+  }
+
   const params = {
     AuthFlow: 'USER_PASSWORD_AUTH',
     ClientId : CLIENT_ID,
@@ -283,31 +291,39 @@ router.post('/signin', async(req, res) => {
 
     //send the command to the cognito
     const response = await cognitoClient.send(command);
+    console.log("response: ", response);
+
+    const {AuthenticationResult} = response;
+    
     res.status(200).json({
       success: true,
       message: "Successfully sign in the user",
-      data: response
+      accessToken: AuthenticationResult.AccessToken,
+      idToken: AuthenticationResult.IdToken,
+      refreshToken: AuthenticationResult.RefreshToken,
+      expiresIn: AuthenticationResult.ExpiresIn,
+      tokenType: AuthenticationResult.TokenType
     });
   }catch(err){
    console.log(('error: ', err));
    
-   //checks if the user account is not confirmed.
-   if(err.name === 'UserNotConfirmedException'){
-     return res.status(403).json({
+  // User has not confirmed their account
+  if (err.name === 'UserNotConfirmedException') {
+    return res.status(403).json({
       success: false,
-      error: "Account not confirmed. Please confrimed the account."
-     });
-   }
-   
+      error: 'Account not confirmed'
+    });
+  }
 
-   //checks if the user email and password is invalid.
-   if(err.name === 'NotAuthorizedException'){
+  // Incorrect username or password
+  if (err.name === 'NotAuthorizedException') {
     return res.status(401).json({
       success: false,
-      error: "Invalid credentials. Please enter valid email or password."
+      error: 'Invalid credentials'
     });
-   }
-   
+  }
+
+ 
     res.status(400).json({
       success: false,
       error: err.message || 'Sign in failed'
@@ -431,7 +447,7 @@ router.post('/confirm-forgot-password', async(req, res) => {
 
   const {username, confirmationCode, password} = req.body;
   
-  console.log('hit confirm forgot password');
+  console.log('hit confirm forgot password', username, confirmationCode, password);
   
   //checks if either of the input is empty
   if(!username || !confirmationCode || !password){
@@ -479,7 +495,10 @@ router.post('/confirm-forgot-password', async(req, res) => {
 
 router.post('/signout', async(req, res) => {
 
-  const {accessToken} = req.body;
+  const authHeader = req.headers['authorization'];
+  const accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+
   console.log('hit signout api');
   
 
