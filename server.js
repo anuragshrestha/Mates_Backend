@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const authRoutes = require('./routes/authRoutes');
+const imageRoutes = require('./routes/uploadImageRoutes');
 
 
 require("dotenv").config();
@@ -18,6 +19,8 @@ app.use(bodyParser.json());
 console.log("Registering routes...");
 app.use('/', authRoutes);
 
+//routes for image.
+app.use('/', imageRoutes);
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`server running on port ${port}`);
