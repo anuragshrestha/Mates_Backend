@@ -36,6 +36,15 @@ const s3 = new S3Client({
 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/heif']
 
 
+
+/**
+ * post: /signup route
+ * the client sends, University name, major, school year, first and last name,
+ * email (must be .edu email) and password.
+ * checks if the user already exists in the database, if so then return error 409.
+ * Otherwise, create new accoount using AWS Cognito and saves the user data in `users`
+ * table in postgres.
+ */
 exports.signupUser = async (req, res) => {
     const file = req.file;
 

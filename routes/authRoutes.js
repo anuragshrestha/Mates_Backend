@@ -9,6 +9,9 @@
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const router = express.Router();
+const upload = require('../middlewares/signUp');
+const authController = require('../controllers/signUpController');
 const {
   CognitoIdentityProviderClient,
   SignUpCommand,
@@ -20,16 +23,15 @@ const {
   GlobalSignOutCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
-const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+
 const pool = require("../database/db");
 const { Client } = require("pg");
 
 require("dotenv").config();
 
-//initialze router
-const router = express.Router();
+
+
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
@@ -47,102 +49,12 @@ const awsConfig = {
 //creates instance of Cognito client to send the request to Amazon Cognito User pool
 const cognitoClient = new CognitoIdentityProviderClient(awsConfig);
 
-/**
- * post: /signup route
- * the client sends, University name, major, school year, first and last name,
- * email (must be .edu email) and password.
- * checks if the user already exists in the database, if so then return error 409.
- * Otherwise, create new accoount using AWS Cognito and saves the user data in `users`
- * table in postgres.
- */
 
-router.post("/signup", async (req, res) => {
-  console.log("req:", req);
+//signup route
+router.post('/signup', upload.single('image'), authController.signupUser);
 
-  //data that we get from the body
-  const {
-    university_name,
-    major,
-    school_year,
-    first_name,
-    last_name,
-    username,
-    password,
-  } = req.body;
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
 
-  //verify if the email is a valid school email address
-  if (!emailRegex.test(username)) {
-    return res
-      .status(400)
-      .json({error: "Email must be a valid school email address" });
-  }
-
-  const full_name = `${first_name} ${last_name}`;
-
-  const params = {
-    ClientId: CLIENT_ID,
-    Username: username, //actual .edu email
-    Password: password,
-    UserAttributes: [
-      {
-        Name: "email",
-        Value: username,
-      },
-      {
-        Name: "name",
-        Value: full_name,
-      },
-    ],
-  };
-
-  try {
-    //checks if the user already exists in database.
-    const exitingUser = await pool.query(
-      `SELECT * FROM users WHERE email = $1`,
-      [username]
-    );
-
-    if (exitingUser.rows.length > 0) {
-      console.log("users already exists in database");
-      
-      return res.status(409).json({
-        success: false,
-        error: "Email already registered",
-      });
-    }
-
-    //writting new SignUp command
-    const command = new SignUpCommand(params);
-    console.log("command: ", command);
-
-    //sending the actual command to AWS Cognito using Client.
-    const result = await cognitoClient.send(command);
-
-    //Inserts into the users table
-    await pool.query(
-      `INSERT INTO users (email, full_name, university_name, major, school_year)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [username, full_name, university_name, major, school_year]
-    );
-
-    res.json({ success: true, message: "User Signup successfully", result });
-  } catch (error) {
-    if (error.name === "UsernameExistsException") {
-      console.log("User already exits in cognito.");
-      
-      return res.status(409).json({
-        success: false,
-        error: "Account already created",
-      });
-    }
-    res.status(400).json({
-      success: false,
-      error: error.message || "Failed to Signup the user",
-    });
-  }
-});
 
 /**
  * post: confirm route
@@ -168,7 +80,7 @@ router.post("/confirm-Signup", async (req, res) => {
 
     //sends the command to cognito for verification.
     const response = await cognitoClient.send(command);
-    console.log("user confirmed successfully.");
+    console.log("user confirmed successfully.", response);
 
     res.json({
       success: true,
@@ -511,20 +423,22 @@ router.post('/signout', async(req, res) => {
   }
 
   const params = {
-    ClientId : CLIENT_ID,
     AccessToken: accessToken
   };
   
   try {
     const command = new GlobalSignOutCommand(params);
     const response = await cognitoClient.send(command);
-
+    
+    console.log("response: ", response);
+    
     res.status(200).json({
       success: true,
       message: 'User successfully signed out.',
       data: response
     });
   }catch(err){
+    console.error("Signout error:", err);
     res.status(400).json({
       success: false,
       error: err.message || 'Failed to signedout user.'
