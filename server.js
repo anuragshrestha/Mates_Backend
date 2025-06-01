@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const authRoutes = require('./routes/authRoutes');
-const imageRoutes = require('./routes/uploadImageRoutes');
+const postRoutes = require('./routes/uploadPostRoute');
 
 
 require("dotenv").config();
@@ -18,6 +18,10 @@ app.use(bodyParser.json());
 
 console.log("Registering routes...");
 app.use('/', authRoutes);
+
+
+//route for uploading post
+app.use('/', postRoutes);
 
 
 
