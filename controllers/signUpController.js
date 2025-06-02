@@ -102,7 +102,7 @@ exports.signupUser = async (req, res) => {
         // Upload image to S3 if present
         let imageUrl = null;
         if (file) {
-            const key = `profile_images/${email}.${file.originamname.split('.').pop()}`;
+            const key = `profile_images/${email}.${file.originalname.split('.').pop()}`;
 
             const uploadCommand = new PutObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME,
