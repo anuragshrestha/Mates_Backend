@@ -9,9 +9,12 @@
 
 const {PutObjectCommand, S3Client} = require('@aws-sdk/client-s3');
 const {PutItemCommand, DynamoDBClient} = require('@aws-sdk/client-dynamodb');
+const getUserEmail = require('../utils/getCognitoUserEmail');
 const pool = require('../database/db');
 const { v4: uuidv4} = require('uuid');
 
+
+require('dotenv').config();
 
 
 
@@ -43,21 +46,29 @@ const dynamodb = new DynamoDBClient({
 exports.createPost = async(req, res) => {
 
     const {status} = req.body;
-    const email = req.user.email;
+    const username = req.user?.username;
+    console.log("username: ", username);
+    
+    const email = req.user?.email || await getUserEmail(username);
     const post_id = uuidv4();
     const comment_id = uuidv4();
     const image = req.file;
     const createdAt = new Date().toISOString();
     const file = req.file;
-
+     
     const userResult = await pool.query(
         `SELECT * FROM users WHERE email = $1`, [email]
     );
 
-    const user = userResult.rows[0];
+     const user = userResult.rows[0];
 
      const imageKey = image ? `${user.university_name}/${email}/${post_id}.${file.originalname.split('.').pop()}` : null;
-     const imageUrl = null;
+     let imageUrl = null;
+     
+
+     if (!process.env.AWS_POST_BUCKET_NAME) {
+         throw new Error("AWS_POST_BUCKET_NAME environment variable is not defined");
+     }
 
     try {
         if (image){
