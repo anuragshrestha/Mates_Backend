@@ -2,7 +2,7 @@ const pool = require('../database/db');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const {SignUpCommand, CognitoIdentityProviderClient} = require("@aws-sdk/client-cognito-identity-provider")
 const {v4: uuidv4} = require('uuid');
-const user_id = uuidv4();
+const id = uuidv4();
 
 
 
@@ -123,16 +123,21 @@ exports.signupUser = async (req, res) => {
         
             imageUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
         }
+        
+        //send request to the cognito client
+        const command = new SignUpCommand(params);
+        const result = await cognitoClient.send(command);
+
+        const user_id = result.UserSub;
 
         // Store in DB
         await pool.query(
-            `INSERT INTO users (user_id,email, full_name, university_name, major, school_year, profile_image_url)
+            `INSERT INTO users (user_id, email, full_name, university_name, major, school_year, profile_image_url)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [user_id, email, full_name, university_name, major, school_year, imageUrl]
         );
 
-        const command = new SignUpCommand(params);
-        const result = await cognitoClient.send(command);
+ 
 
         console.log('User signed up successfully: ', result);
         
