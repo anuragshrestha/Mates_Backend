@@ -1,7 +1,8 @@
 const pool = require('../database/db');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const {SignUpCommand, CognitoIdentityProviderClient} = require("@aws-sdk/client-cognito-identity-provider")
-
+const {v4: uuidv4} = require('uuid');
+const id = uuidv4();
 
 
 
@@ -34,7 +35,6 @@ const s3 = new S3Client({
 
 
 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/heif']
-
 
 
 /**
@@ -102,8 +102,9 @@ exports.signupUser = async (req, res) => {
         // Upload image to S3 if present
         let imageUrl = null;
         if (file) {
-            const key = `profile_images/${email}.jpg`;
-
+            const key = `profile_images/${email}.${file.originalname.split('.').pop()}`;
+             console.log('image key: ', key);
+             
             const uploadCommand = new PutObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME,
                 Key: key,
@@ -122,16 +123,21 @@ exports.signupUser = async (req, res) => {
         
             imageUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
         }
+        
+        //send request to the cognito client
+        const command = new SignUpCommand(params);
+        const result = await cognitoClient.send(command);
+
+        const user_id = result.UserSub;
 
         // Store in DB
         await pool.query(
-            `INSERT INTO users (email, full_name, university_name, major, school_year, profile_image_url)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [email, full_name, university_name, major, school_year, imageUrl]
+            `INSERT INTO users (user_id, email, full_name, university_name, major, school_year, profile_image_url)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [user_id, email, full_name, university_name, major, school_year, imageUrl]
         );
 
-        const command = new SignUpCommand(params);
-        const result = await cognitoClient.send(command);
+ 
 
         console.log('User signed up successfully: ', result);
         
