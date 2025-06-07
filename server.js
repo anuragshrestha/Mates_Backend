@@ -23,6 +23,8 @@ app.use('/', authRoutes);
 //route for uploading post
 app.use('/', postRoutes);
 
+//route for user feed
+//app.use('/', feedRoute);
 
 const redisClient = new redis({
     host: process.env.REDIS_HOST,

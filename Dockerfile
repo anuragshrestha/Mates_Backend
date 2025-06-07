@@ -10,6 +10,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
+
+
 # Expose port
 EXPOSE 4000
 
