@@ -34,7 +34,7 @@ const dynamoDBClient = new DynamoDBClient({
 
 
 //query current user data from users table based on the user_id
-const userData = async(user_id) => {
+const getUserData = async(user_id) => {
  
     const data = await pool.query(
         `SELECT * FROM users WHERE user_id = $1`,
@@ -166,7 +166,7 @@ const getPostStatsFromDynamoDB = async (postIds) => {
 
 
 module.exports = {
-    userData,
+    getUserData,
     getAllFollowees,
     getPosts
 }

@@ -13,6 +13,7 @@ services:
       - redis
     volumes:
       - .:/app
+      - /app/node_modules 
     networks:
       - mates-network
 
@@ -36,11 +37,15 @@ services:
     container_name: mates-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     networks:
       - mates-network
 
 volumes:
   pg_data:
+  redis_data:
 
 networks:
   mates-network:

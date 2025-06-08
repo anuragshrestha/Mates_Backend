@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm install 
+RUN npm install -g nodemon
 
 # Copy source code
 COPY . .
@@ -16,4 +17,4 @@ COPY . .
 EXPOSE 4000
 
 # Start server
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
