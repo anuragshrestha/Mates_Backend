@@ -43,7 +43,7 @@ const dynamodb = new DynamoDBClient({
 });
 
 
-exports.createPost = async(req, res) => {
+const createPost = async(req, res) => {
 
     const {status} = req.body;
     const username = req.user?.username;
@@ -84,8 +84,8 @@ exports.createPost = async(req, res) => {
 
         //stored the post metadata in posts table.
         await pool.query(
-            `INSERT INTO posts (post_id, email, image_url, created_at, status) VALUES ($1, $2, $3, $4, $5)`,
-            [post_id, email, imageUrl, createdAt, status]
+            `INSERT INTO posts (post_id, email, image_url, created_at, status, user_id, university_name) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING*`,
+            [post_id, email, imageUrl, createdAt, status, username, user.university_name]
         );
 
         //stored the post meta data in DynamoDB
@@ -107,3 +107,8 @@ exports.createPost = async(req, res) => {
       return res.status(500).json({success: false, error: error.message})
     }
  }
+
+
+ module.exports = {
+    createPost
+ };

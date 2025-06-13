@@ -33,7 +33,7 @@ const verifyJWT = (jwtVerifier) => {
       );
 
       const payload = await Promise.race([verifyPromise, timeoutPromise]);
-      console.log(`[JWT Middleware] Token verified for user: ${payload.email}`);
+  
      
       req.user = payload; 
       console.log(req.user); 

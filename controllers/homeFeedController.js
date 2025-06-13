@@ -1,5 +1,5 @@
-import { getUserData, getAllFollowees, getPosts} from "../models/homeFeedModel";
-import redisClient from "../utils/redis";
+const  {getUserData, getAllFollowees, getPosts} = require("../models/homeFeedModel");
+const redisClient = require('../utils/redis')
 
 const getFeed = async(req, res) => {
 
@@ -37,34 +37,48 @@ const getFeed = async(req, res) => {
          user = JSON.parse(cachedUser);
       }else{
         user = await getUserData(userId);
-        //cache it for 1 week
-        await redisClient.set(userKey, JSON.stringify(user), 'EX', 604800);
+
+        if(user != undefined){
+          //cache it for 1 week
+          console.log('storing user in redis: ', user);
+          
+          await redisClient.set(userKey, JSON.stringify(user), 'EX', 604800);
+        } 
       }
 
       if(cachedFollowees){
         followees = JSON.parse(cachedFollowees);
       }else{
         followees = await getAllFollowees(userId);
-        //cache it for 1 day.
-        await redisClient.set(followeeKey, JSON.stringify(followees), 'EX', 86400);
+        if(followees != undefined){
+          //cache it for 1 day.
+           console.log('storing followees in redis: ', followees);
+          await redisClient.set(followeeKey, JSON.stringify(followees), 'EX', 86400);
+        }
+
       }
 
       if(cachedPosts){
         posts = JSON.parse(posts);
       }else{
         posts = await getPosts(followees, user.university_name);
-        //cache it for 2 minutes
-        await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 120);
+        if(posts != undefined){
+          //cache it for 2 minutes
+          console.log('storing posts in redis: ', posts);
+          await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 120);
+        }
       }
 
       return res.status(200).json({success: true, user, posts});
 
     } catch(error){
         console.error('Error in fetching home feed: ', error);
-        return res.status(500).json({success: false, error: error})
+        return res.status(500).json({success: false, error: error.message})
     }
 
 }
 
 
-module.exports = getFeed;
+module.exports = {
+  getFeed
+};
