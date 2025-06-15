@@ -2,7 +2,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/uploadPostRoute');
-const redis = require('ioredis');
+const redisClient = require('./utils/redis');
+const feedRoute = require('./routes/homeFeedRoute');
+const followRoute = require('./routes/followRoute');
 
 require("dotenv").config();
 
@@ -24,12 +26,11 @@ app.use('/', authRoutes);
 app.use('/', postRoutes);
 
 //route for user feed
-//app.use('/', feedRoute);
+app.use('/', feedRoute);
 
-const redisClient = new redis({
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT
-});
+
+//route for following other user
+app.use('/', followRoute);
 
 
 app.get('/', async (req, res) => {

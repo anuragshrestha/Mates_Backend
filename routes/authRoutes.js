@@ -129,15 +129,15 @@ router.post('/resend-confirmation-code', async(req, res) => {
 
   const {username} = req.body;
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+  // const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
  
-  //checks if the email is a valid .edu address
-  if(!emailRegex.test(username)){
-    res.status(400).json({
-      success: false,
-      error: "Invalid email. Email address should be .edu address"
-    })
-  };
+  // //checks if the email is a valid .edu address
+  // if(!emailRegex.test(username)){
+  //   res.status(400).json({
+  //     success: false,
+  //     error: "Invalid email. Email address should be .edu address"
+  //   })
+  // };
 
   const params = {
     ClientId: CLIENT_ID,

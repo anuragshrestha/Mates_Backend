@@ -63,14 +63,14 @@ exports.signupUser = async (req, res) => {
 
    
 
-   const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+//    const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
 
-    //verify if the email is a valid school email address
-    if (!emailRegex.test(username)) {
-        return res
-        .status(400)
-        .json({error: "Email must be a valid school email address" });
-    }
+//     //verify if the email is a valid school email address
+//     if (!emailRegex.test(username)) {
+//         return res
+//         .status(400)
+//         .json({error: "Email must be a valid school email address" });
+//     }
 
     try {
         const existingUser = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);

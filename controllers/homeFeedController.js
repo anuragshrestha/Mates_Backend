@@ -4,6 +4,8 @@ const redisClient = require('../utils/redis')
 const getFeed = async(req, res) => {
 
     try{
+
+       //Retrives the user id.
        const userId = req.user?.username;
        
 
@@ -13,7 +15,7 @@ const getFeed = async(req, res) => {
       const userKey = `user:${userId}`;
       const followeeKey = `followee:${userId}`;
       const postsKey = `feed:${userId}`;
-      
+  
       
       //Try to get the cache from redis
       const [cachedUser, cachedFollowees, cachedPosts] = await Promise.all([
@@ -35,37 +37,54 @@ const getFeed = async(req, res) => {
 
       if(cachedUser){
          user = JSON.parse(cachedUser);
+         console.log('user is cached ', user);
+         
       }else{
-        user = await getUserData(userId);
+         user = await getUserData(userId);
 
         if(user != undefined){
           //cache it for 1 week
           console.log('storing user in redis: ', user);
           
           await redisClient.set(userKey, JSON.stringify(user), 'EX', 604800);
-        } 
+        } else{
+          console.log('user is defined: ', user);
+          
+        }
       }
 
       if(cachedFollowees){
         followees = JSON.parse(cachedFollowees);
+        console.log('followese is cached: ', followees);
+        
       }else{
         followees = await getAllFollowees(userId);
         if(followees != undefined){
           //cache it for 1 day.
            console.log('storing followees in redis: ', followees);
           await redisClient.set(followeeKey, JSON.stringify(followees), 'EX', 86400);
+        }else{
+          console.log('followees is defined ', followees);
+          
         }
 
       }
 
       if(cachedPosts){
         posts = JSON.parse(posts);
+        console.log('posts are cached: ', posts);
+        
       }else{
+        console.log('university name is: ', user.university_name);
+        
         posts = await getPosts(followees, user.university_name);
         if(posts != undefined){
           //cache it for 2 minutes
           console.log('storing posts in redis: ', posts);
           await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 120);
+        }else{
+          console.log('posts is defined: ', posts);
+          
         }
       }
 

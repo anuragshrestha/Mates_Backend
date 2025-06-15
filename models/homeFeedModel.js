@@ -42,7 +42,7 @@ const getUserData = async(user_id) => {
     );
 
     if(data.rows.length === 0){
-        return 'no user found';
+        return null;
     }
 
     return data.rows[0];
@@ -60,17 +60,17 @@ const getAllFollowees = async(user_id) => {
     return result.rows.map(r => r.followee_id);
 };
 
+
+
 /**
  * Query latest 20 posts including the poster full name and image_url from posts 
  * table based on the followee_id list and university_name. 
  * Then fetch the likes and comments count for each post, merge it and returns 
  * all the 20 posts
 */
-
-
 const getPosts = async(followee_ids, university_name) => {
 
-    //check if teh user is following any other users
+    //check if the user is following any other users
     const hasFollowee = followee_ids.length > 0;
     
 
