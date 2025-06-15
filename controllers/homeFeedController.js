@@ -71,17 +71,18 @@ const getFeed = async(req, res) => {
       }
 
       if(cachedPosts){
-        posts = JSON.parse(posts);
+        posts = JSON.parse(cachedPosts);
         console.log('posts are cached: ', posts);
         
       }else{
         console.log('university name is: ', user.university_name);
+        console.log('userid is: ', userId);
         
-        posts = await getPosts(followees, user.university_name);
+        posts = await getPosts(followees, user.university_name, userId);
         if(posts != undefined){
-          //cache it for 2 minutes
+          //cache it for 1 minutes
           console.log('storing posts in redis: ', posts);
-          await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 120);
+          await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 60);
         }else{
           console.log('posts is defined: ', posts);
           

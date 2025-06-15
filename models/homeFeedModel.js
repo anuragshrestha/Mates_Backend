@@ -68,7 +68,7 @@ const getAllFollowees = async(user_id) => {
  * Then fetch the likes and comments count for each post, merge it and returns 
  * all the 20 posts
 */
-const getPosts = async(followee_ids, university_name) => {
+const getPosts = async(followee_ids, university_name, current_userId) => {
 
     //check if the user is following any other users
     const hasFollowee = followee_ids.length > 0;
@@ -91,13 +91,20 @@ const getPosts = async(followee_ids, university_name) => {
       conditions.push(`p.user_id IN (${placeholders})`);
     }
 
+    //adding the university placeholder
     values.push(university_name);
     const uniPlaceHolder = `$${values.length}`
     conditions.push(`p.university_name = ${uniPlaceHolder}`);
 
+
+    //add the current user to exclude it from showing their own posts
+    values.push(current_userId);
+    const userPlaceHolder = `$${values.length}`;
+    const excludeConditions = `p.user_id != ${userPlaceHolder}`;
+
     
     query += `
-     WHERE ${conditions.join(' OR ')}
+     WHERE (${conditions.join(' OR ')}) AND ${excludeConditions}
      ORDER BY p.created_at DESC
      LIMIT 20
     `
@@ -121,7 +128,6 @@ const getPosts = async(followee_ids, university_name) => {
        comments: fetchLikesComments[post.post_id]?.comments || 0
     }));
 
-     console.log(JSON.stringify(mergePost, null, 2));
     return mergePost;
 }
 
