@@ -8,3 +8,5 @@ const {verifyJWT, jwtVerifier} = require('../middlewares/verifyJWT');
 router.post('/follow', verifyJWT(jwtVerifier), follow);
 
 module.exports = router;
+
+//testing
