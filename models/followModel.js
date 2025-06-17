@@ -1,21 +1,15 @@
 const pool = require("../database/db");
 
-
-
-
-
 /**
- * Querys from follows table and checks if the follower has already 
+ * Querys from follows table and checks if the follower has already
  * followed the followee. If so then it returns True
  * Otherwise, it Inserts the follower_id and followee_id into the follows
- * table. 
+ * table.
  * @param {String} follower_id
- * @param {String} followee_id 
+ * @param {String} followee_id
  * @returns {Object} {success: bool, message: String}
  */
-const followUser = async ( follower_id, followee_id) => {
-
-
+const followUser = async (follower_id, followee_id) => {
   try {
     const alreadyFollowed = await pool.query(
       `SELECT * FROM follows WHERE follower_id = $1 AND followee_id = $2 `,
@@ -23,7 +17,7 @@ const followUser = async ( follower_id, followee_id) => {
     );
 
     if (alreadyFollowed.rows.length > 0) {
-      return { success: false, message: "user was already followed" };
+      return { success: false, error: "user was already followed" };
     }
 
     const didFollow = await pool.query(
@@ -36,11 +30,9 @@ const followUser = async ( follower_id, followee_id) => {
     );
 
     if (didFollow.rows.length > 0) {
-      console.log("successfully followed");
       return { success: true, message: "Successfully followed" };
     } else {
-      console.log("failed to follow user: ", followee_id);
-      return { success: false, message: "failed to follow" };
+      return { success: false, error: "failed to follow" };
     }
   } catch (error) {
     return { success: false, error: error.message };
@@ -48,6 +40,47 @@ const followUser = async ( follower_id, followee_id) => {
 };
 
 
+
+
+/**
+ * 
+ * @param {String} follower_id 
+ * @param {String} followee_id 
+ * @returns {Object} {success: bool, message: String}
+ */
+const unfollowUser = async (follower_id, followee_id) => {
+
+  try {
+    //Query row to check if follower folows followee
+    const follows = await pool.query(
+      `SELECT * FROM follows WHERE follower_id = $1 AND followee_id = $2`,
+      [follower_id, followee_id]
+    );
+
+    //if row length is zero, then follower doesnot follows followee.
+    if (follows.rows.length === 0) {
+      return { success: false, error: "User was not followed" };
+    }
+
+    const unfollow = await pool.query(
+      `DELETE FROM follows
+       WHERE follower_id = $1 AND followee_id = $2
+       RETURNING *
+      `,
+      [follower_id, followee_id]
+    );
+
+    if (unfollow.rows.length > 0) {
+      return { success: true, message: "Successfully unfollowed" };
+    } else {
+      return { success: false, error: "Failed to unfollow" };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
-    followUser
-}
+  followUser,
+  unfollowUser
+};
