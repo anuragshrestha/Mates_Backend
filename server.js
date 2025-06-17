@@ -29,8 +29,10 @@ app.use('/', postRoutes);
 app.use('/', feedRoute);
 
 
-//route for following other user
+//route for following and unfollowing other user
 app.use('/', followRoute);
+
+
 
 
 app.get('/', async (req, res) => {
