@@ -6,7 +6,7 @@ const getFeed = async(req, res) => {
     try{
 
        //Retrives the user id.
-       const userId = req.user?.username;
+       const userId = req.user?.username?.trim();
        
 
        //checks if there is a userId in request. If not then returns 401 error.

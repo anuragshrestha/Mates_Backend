@@ -128,7 +128,7 @@ exports.signupUser = async (req, res) => {
         const command = new SignUpCommand(params);
         const result = await cognitoClient.send(command);
 
-        const user_id = result.UserSub;
+        const user_id = result.UserSub?.trim();
 
         // Store in DB
         await pool.query(

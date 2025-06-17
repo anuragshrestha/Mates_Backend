@@ -46,7 +46,7 @@ const dynamodb = new DynamoDBClient({
 const createPost = async(req, res) => {
 
     const {status} = req.body;
-    const username = req.user?.username;
+    const username = req.user?.username?.trim();
     console.log("username: ", username);
     
     const email = req.user?.email || await getUserEmail(username);

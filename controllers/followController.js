@@ -1,6 +1,6 @@
 const { followUser, unfollowUser } = require("../models/followModel");
 const redisClient = require("../utils/redis");
-const { getAllFollowees } = require("../models/homeFeedModel");
+const { getAllFollowees, getPosts, getUserData } = require("../models/homeFeedModel");
 
 /**
  * Calls the followUser model and tries to follow the followee_id
@@ -9,10 +9,10 @@ const { getAllFollowees } = require("../models/homeFeedModel");
  * @returns {Object}  {success: bool, message: String}
  */
 const follow = async (req, res) => {
-  //retrives the follower_id from jwt
-  const follower_id = req.user?.username;
 
-  const followee_id = req.body.followee_id;
+  //retrives the follower_id from jwt
+  const follower_id = req.user?.username?.trim();
+  const followee_id = req.body.followee_id?.trim();
 
   //checks if both the follower_id and followee_id are provided
   if (!follower_id || !followee_id) {
@@ -38,13 +38,16 @@ const follow = async (req, res) => {
     if (response.success) {
 
        const followeeKey = `followee:${follower_id}`;
+       const postsKey = `feed:${follower_id}`;
+       const userKey = `user:${follower_id}`;
    
-       //delete the cached if exits
+       //delete the cached following list and posts if exits
         await redisClient.del(followeeKey);
+        await redisClient.del(postsKey);
 
         const updatedlist = await getAllFollowees(follower_id);
 
-        //cahced the updated followee list
+        //cached the updated followee list
         if (updatedlist != undefined) {
           await redisClient.set(
             followeeKey,
@@ -52,7 +55,21 @@ const follow = async (req, res) => {
             "EX",
             86400
           );
+      };
+
+      let userData = await redisClient.get(userKey);
+    
+      if(userData == undefined){
+        userData = await getUserData(follower_id);
       }
+
+      const updatedPost = await getPosts(updatedlist, userData.university_name, follower_id);
+      
+      if (updatedPost != undefined){
+          //cached the posts with updated following list
+          await redisClient.set(postsKey, JSON.stringify(updatedPost), 'EX', 60);
+      }
+ 
 
       return res
         .status(200)
@@ -77,10 +94,11 @@ const follow = async (req, res) => {
  */
 
 const unfollow = async (req, res) => {
-  //extracts follower_id from jwt
-  const follower_id = req.user?.username;
 
-  const followee_id = req.body.followee_id;
+    
+  //extracts follower_id from jwt
+  const follower_id = req.user?.username?.trim();
+  const followee_id = req.body.followee_id?.trim();
 
   //checks if both follower id and followee id are provided
   if (!follower_id || !followee_id) {
@@ -104,15 +122,31 @@ const unfollow = async (req, res) => {
     if (response.success) {
 
        const followeeKey = `followee:${follower_id}`;
+       const postKey = `feed:${follower_id}`;
+       const userKey = `user:${follower_id}`;
 
-       //delete the cached followee list if exits
+       //delete the cached followee list and posts if exits
        await redisClient.del(followeeKey);
+       await redisClient.del(postKey);
 
-       const updatedList = await getAllFollowees(follower_id);
+       const updatedFolloweeList = await getAllFollowees(follower_id);
 
        //cached the updated lists if exits
-       if(updatedList != undefined){
-          await redisClient.set(followeeKey, JSON.stringify(updatedList), 'EX', 86400);
+       if(updatedFolloweeList != undefined){
+          await redisClient.set(followeeKey, JSON.stringify(updatedFolloweeList), 'EX', 86400);
+       }
+
+       let userData = await redisClient.get(userKey);
+
+       if(userData == undefined){
+         userData = await getUserData(follower_id);
+       }
+
+       const updatedPosts = await getPosts(updatedFolloweeList, userData.university_name, follower_id);
+
+       if(updatedPosts != undefined){
+           //cached the updated post with the new following list
+           await redisClient.set(postKey, JSON.stringify(updatedPosts), 'EX', 60);
        }
 
       console.log("Successfully unfollowed the user");
