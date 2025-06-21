@@ -1,6 +1,14 @@
-const  {getUserData, getAllFollowees, getPosts} = require("../models/homeFeedModel");
+const  {getUserData, getAllFollowees, getPosts, addLikes, deleteLikes} = require("../models/homeFeedModel");
 const redisClient = require('../utils/redis')
 
+
+
+/**
+ * Fetched all the latest 20 post for the home feed.
+ * @param {*} req 
+ * @param {*} res 
+ * @returns latest 20 posts
+ */
 const getFeed = async(req, res) => {
 
     try{
@@ -81,7 +89,7 @@ const getFeed = async(req, res) => {
         posts = await getPosts(followees, user.university_name, userId);
         if(posts != undefined){
           //cache it for 1 minutes
-          console.log('storing posts in redis: ', posts);
+          console.log('storing posts in redis:');
           await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 60);
         }else{
           console.log('posts is defined: ', posts);
@@ -99,6 +107,66 @@ const getFeed = async(req, res) => {
 }
 
 
+
+/**
+ * Calls the addLikes to add a new like to a post
+ * by the user. 
+ * @param {*} req 
+ * @param {*} res 
+ * @returns success: true else false
+ */
+const likePost = async(req, res) => {
+
+  const user_id = req.user?.username?.trim();
+  const post_id = req.body.post_id;
+
+  console.log('user id is: ', user_id);
+  
+  try{
+       await addLikes(user_id, post_id);
+       console.log('successfully liked the post, ', post_id);    
+       return res.status(200).json({success: true, post_id});
+  }catch (error){
+    console.log('failed to fetched the liked posts');
+    return res.status(500).json({success: false, error: error.message});
+    
+  }
+}
+
+
+
+/**
+ * Calls the deletedlikes and unlike the post.
+ * @param {*} req 
+ * @param {*} res 
+ * @returns 
+ */
+
+const unLikePost = async(req, res) => {
+
+  const user_id = req.user?.username?.trim();
+  const post_id = req.body.post_id;
+
+
+  try{
+
+    await deleteLikes(user_id, post_id);
+    console.log('successfully unliked the post, ', post_id);
+    return res.status(200).json({success: true, post_id});
+
+  }catch(error){
+     return res.status(500).json({success: false, error: error.message});
+  }
+}
+
+
+
+
+
+
+
 module.exports = {
-  getFeed
+  getFeed,
+  likePost,
+  unLikePost
 };
