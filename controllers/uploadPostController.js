@@ -95,7 +95,8 @@ const createPost = async(req, res) => {
                 post_id: {S: post_id},
                 likes: {N: "0"},
                 comments: {N: "0"}
-            }  
+            },
+            ConditionExpression: "attribute_not_exists(post_id)"
         }));
         
         console.log('Successfully created and stored the post ', post_id);
