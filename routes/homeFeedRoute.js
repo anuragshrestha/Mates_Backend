@@ -4,6 +4,6 @@ const {verifyJWT, jwtVerifier} = require('../middlewares/verifyJWT');
 const {getFeed} = require('../controllers/homeFeedController');
 
 
-router.get('/home-feed', verifyJWT(jwtVerifier), getFeed);
+router.get('/aroundyou-feed', verifyJWT(jwtVerifier), getFeed);
 
 module.exports = router;
