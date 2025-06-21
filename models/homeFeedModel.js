@@ -1,6 +1,6 @@
 const pool = require('../database/db');
-const {BatchGetItemCommand, DynamoDBClient} = require('@aws-sdk/client-dynamodb');
-const getUserEmail = require('../utils/getCognitoUserEmail');
+const {DynamoDBClient} = require('@aws-sdk/client-dynamodb');
+const  {BatchGetCommand, DynamoDBDocumentClient, PutCommand, DeleteCommand, UpdateCommand} = require('@aws-sdk/lib-dynamodb');
 
 
 require('dotenv').config();
@@ -22,6 +22,7 @@ const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 
 
 const TABLE_NAME = process.env.AWS_DYNAMODB_TABLE_NAME;
+const LIKES_TABLE = process.env.AWS_DYNAMODB_LIKES_TABLE;
 
 //initialize dynamodb client
 const dynamoDBClient = new DynamoDBClient({
@@ -31,6 +32,10 @@ const dynamoDBClient = new DynamoDBClient({
         secretAccessKey: AWS_SECRET_ACCESS_KEY
     }
 });
+
+
+//Initialize DynamoDB Doc client
+const docClient =  DynamoDBDocumentClient.from(dynamoDBClient);
 
 
 //query current user data from users table based on the user_id
@@ -119,13 +124,15 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
 
     //fetch all the likes and comments for each post
     const fetchLikesComments = await getPostStatsFromDynamoDB(postIds);
+    const likedPost = await getUserLikedPost(current_userId, postIds);
 
 
     //merge the likes and comments with its post and returns it
     const mergePost = posts.map(post => ({
        ...post,
        likes: fetchLikesComments[post.post_id]?.likes || 0,
-       comments: fetchLikesComments[post.post_id]?.comments || 0
+       comments: fetchLikesComments[post.post_id]?.comments || 0,
+       hasLiked: likedPost.has(post.post_id)
     }));
 
     return mergePost;
@@ -138,7 +145,7 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
 const getPostStatsFromDynamoDB = async (postIds) => {
     if (postIds.length === 0) return {};
 
-    const keys = postIds.map(id => ({ post_id: { S: id } }));
+    const keys = postIds.map(id => ({ post_id: id  }));
 
     const params = {
         RequestItems: {
@@ -150,15 +157,15 @@ const getPostStatsFromDynamoDB = async (postIds) => {
     };
 
     try {
-        const command = new BatchGetItemCommand(params);
-        const response = await dynamoDBClient.send(command);
+        const command = new BatchGetCommand(params);
+        const response = await docClient.send(command);
 
         const stats = {};
         for (const item of response.Responses[TABLE_NAME]) {
-            const postId = item.post_id.S;
+            const postId = item.post_id;
             stats[postId] = {
-                likes: item.likes ? parseInt(item.likes.N) : 0,
-                comments: item.comments ? parseInt(item.comments.N) : 0
+                likes: item.likes || 0,
+                comments: item.comments || 0
             };
         }
 
@@ -171,8 +178,138 @@ const getPostStatsFromDynamoDB = async (postIds) => {
 
 
 
+/**
+ * Fetched all the post from postIds that are liked by the user_id
+ * @param {*} user_id 
+ * @param {*} postIds 
+ * @returns set of post that are liked by the user from postIds
+ */
+const getUserLikedPost = async(user_id, postIds) => {
+
+    if(postIds.length === 0 ) return new Set();
+
+    //maps each post_id with the user_id
+    const keys = postIds.map(id => ({
+        PK: `USER#${user_id}`,
+        SK: `POST#${id}`,
+    }));
+   
+
+    const params = {
+        RequestItems : {
+            [LIKES_TABLE]: {
+              Keys: keys,
+              ProjectionExpression: "SK"
+            }
+        }
+    };
+
+
+    try{
+        const command = new BatchGetCommand(params);
+        const response = await docClient.send(command);
+
+        let likedPosts = new Set();
+        const items = response.Responses?.[LIKES_TABLE] || [];
+        for(const item of items){
+            const post_id = item.SK.replace("POST#", "");
+            likedPosts.add(post_id);
+        }
+
+        return likedPosts;
+    }catch(error){
+       console.log("error fetching likes post ", error);
+       return new Set();
+    }
+}
+
+
+
+
+/**
+ * Add likes if a user likes a post
+ * @param {String} user_id 
+ * @param {String} post_id 
+ */
+const addLikes = async(user_id, post_id) => {
+
+  await docClient.send(new PutCommand({
+    TableName: LIKES_TABLE,
+    Item: {
+        PK: `USER#${user_id}`,
+        SK: `POST#${post_id}`
+    },
+    ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)"
+  }));
+
+  console.log(`User ${user_id} liked post ${post_id}`);
+  await incrementLikesCount(post_id);
+}
+
+
+/**
+ * Deletes a like if a user unlike a post
+ * @param {*} user_id 
+ * @param {*} post_id 
+ */
+const deleteLikes = async(user_id, post_id) => {
+    
+    await docClient.send(new DeleteCommand({
+        TableName: LIKES_TABLE,
+        Key: {
+            PK: `USER#${user_id}`,
+            SK: `POST#${post_id}`
+        }
+    }));
+
+    console.log(`User ${user_id} unliked post ${post_id}`);
+    await decrementLikesCount(post_id);
+}
+
+
+
+/**
+ * Increments the like count of a post if a user likes a post
+ * @param {String} post_id 
+ */
+const incrementLikesCount = async(post_id) => {
+
+    await docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME, 
+        Key: {post_id : post_id},
+        UpdateExpression: "ADD likes :inc",
+        ExpressionAttributeValues: {
+            ":inc" : 1,
+        }
+    }));
+}
+
+
+/**
+ * Decrement the likes count if a user unlike a post
+ * @param {String} post_id 
+ */
+const decrementLikesCount = async(post_id) => {
+
+    await docClient.send(new UpdateCommand ({
+        TableName: TABLE_NAME,
+        Key: {post_id : post_id},
+        UpdateExpression: "ADD likes :dec",
+        ConditionExpression : "attribute_exists(likes) AND likes > :zero",
+        ExpressionAttributeValues: {
+            ":dec" : -1,
+            ":zero" : 0
+        } 
+    }));
+}
+
+
 module.exports = {
     getUserData,
     getAllFollowees,
-    getPosts
+    getPosts,
+    addLikes,
+    deleteLikes,
+    incrementLikesCount,
+    decrementLikesCount
 }
