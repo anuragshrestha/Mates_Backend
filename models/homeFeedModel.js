@@ -119,7 +119,7 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
     const posts = result.rows;
 
     //extracts the post ids only
-    const postIds = posts.map(post => post.post_id);
+    const postIds = posts.map(post => post.post_id.toUpperCase());
 
 
     //fetch all the likes and comments for each post
@@ -162,7 +162,7 @@ const getPostStatsFromDynamoDB = async (postIds) => {
 
         const stats = {};
         for (const item of response.Responses[TABLE_NAME]) {
-            const postId = item.post_id;
+            const postId = item.post_id.toUpperCase();
             stats[postId] = {
                 likes: item.likes || 0,
                 comments: item.comments || 0
@@ -191,9 +191,10 @@ const getUserLikedPost = async(user_id, postIds) => {
     //maps each post_id with the user_id
     const keys = postIds.map(id => ({
         PK: `USER#${user_id}`,
-        SK: `POST#${id}`,
+        SK: `POST#${id.toUpperCase()}`,
     }));
    
+    console.log("Checking likes for user:", user_id, "posts:", postIds);
 
     const params = {
         RequestItems : {
@@ -208,11 +209,12 @@ const getUserLikedPost = async(user_id, postIds) => {
     try{
         const command = new BatchGetCommand(params);
         const response = await docClient.send(command);
-
+        
+       console.log("Liked posts response from DynamoDB:", JSON.stringify(response, null, 2));
         let likedPosts = new Set();
         const items = response.Responses?.[LIKES_TABLE] || [];
         for(const item of items){
-            const post_id = item.SK.replace("POST#", "");
+            const post_id = item.SK.replace("POST#", "").toUpperCase();
             likedPosts.add(post_id);
         }
 
@@ -237,13 +239,13 @@ const addLikes = async(user_id, post_id) => {
     TableName: LIKES_TABLE,
     Item: {
         PK: `USER#${user_id}`,
-        SK: `POST#${post_id}`
+        SK: `POST#${post_id.toUpperCase()}`
     },
     ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)"
   }));
 
   console.log(`User ${user_id} liked post ${post_id}`);
-  await incrementLikesCount(post_id);
+  await incrementLikesCount(post_id.toUpperCase());
 }
 
 
@@ -258,12 +260,12 @@ const deleteLikes = async(user_id, post_id) => {
         TableName: LIKES_TABLE,
         Key: {
             PK: `USER#${user_id}`,
-            SK: `POST#${post_id}`
+            SK: `POST#${post_id.toUpperCase()}`
         }
     }));
 
     console.log(`User ${user_id} unliked post ${post_id}`);
-    await decrementLikesCount(post_id);
+    await decrementLikesCount(post_id.toUpperCase());
 }
 
 

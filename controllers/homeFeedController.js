@@ -26,10 +26,9 @@ const getFeed = async(req, res) => {
   
       
       //Try to get the cache from redis
-      const [cachedUser, cachedFollowees, cachedPosts] = await Promise.all([
+      const [cachedUser, cachedFollowees] = await Promise.all([
          redisClient.get(userKey),
          redisClient.get(followeeKey),
-         redisClient.get(postsKey)
       ]);
      
 
@@ -78,24 +77,13 @@ const getFeed = async(req, res) => {
 
       }
 
-      if(cachedPosts){
-        posts = JSON.parse(cachedPosts);
-        console.log('posts are cached: ', posts);
-        
-      }else{
+    
         console.log('university name is: ', user.university_name);
         console.log('userid is: ', userId);
         
         posts = await getPosts(followees, user.university_name, userId);
-        if(posts != undefined){
-          //cache it for 1 minutes
-          console.log('storing posts in redis:');
-          await redisClient.set(postsKey, JSON.stringify(posts), 'EX', 60);
-        }else{
-          console.log('posts is defined: ', posts);
-          
-        }
-      }
+  
+    
 
       return res.status(200).json({success: true, user, posts});
 
@@ -125,7 +113,7 @@ const likePost = async(req, res) => {
   try{
        await addLikes(user_id, post_id);
        console.log('successfully liked the post, ', post_id);    
-       return res.status(200).json({success: true, post_id});
+       return res.status(200).json({success: true, message: post_id});
   }catch (error){
     console.log('failed to fetched the liked posts');
     return res.status(500).json({success: false, error: error.message});
@@ -152,7 +140,7 @@ const unLikePost = async(req, res) => {
 
     await deleteLikes(user_id, post_id);
     console.log('successfully unliked the post, ', post_id);
-    return res.status(200).json({success: true, post_id});
+    return res.status(200).json({success: true, message: post_id});
 
   }catch(error){
      return res.status(500).json({success: false, error: error.message});

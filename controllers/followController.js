@@ -43,7 +43,7 @@ const follow = async (req, res) => {
    
        //delete the cached following list and posts if exits
         await redisClient.del(followeeKey);
-        await redisClient.del(postsKey);
+  
 
         const updatedlist = await getAllFollowees(follower_id);
 
@@ -63,13 +63,7 @@ const follow = async (req, res) => {
         userData = await getUserData(follower_id);
       }
 
-      const updatedPost = await getPosts(updatedlist, userData.university_name, follower_id);
-      
-      if (updatedPost != undefined){
-          //cached the posts with updated following list
-          await redisClient.set(postsKey, JSON.stringify(updatedPost), 'EX', 60);
-      }
- 
+    
 
       return res
         .status(200)
@@ -127,8 +121,7 @@ const unfollow = async (req, res) => {
 
        //delete the cached followee list and posts if exits
        await redisClient.del(followeeKey);
-       await redisClient.del(postKey);
-
+ 
        const updatedFolloweeList = await getAllFollowees(follower_id);
 
        //cached the updated lists if exits
@@ -140,13 +133,6 @@ const unfollow = async (req, res) => {
 
        if(userData == undefined){
          userData = await getUserData(follower_id);
-       }
-
-       const updatedPosts = await getPosts(updatedFolloweeList, userData.university_name, follower_id);
-
-       if(updatedPosts != undefined){
-           //cached the updated post with the new following list
-           await redisClient.set(postKey, JSON.stringify(updatedPosts), 'EX', 60);
        }
 
       console.log("Successfully unfollowed the user");
