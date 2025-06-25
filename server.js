@@ -5,6 +5,7 @@ const postRoutes = require('./routes/uploadPostRoute');
 const redisClient = require('./utils/redis');
 const feedRoute = require('./routes/homeFeedRoute');
 const followRoute = require('./routes/followRoute');
+const searchRoute = require('./routes/searchUsersRoute');
 
 require("dotenv").config();
 
@@ -32,8 +33,8 @@ app.use('/', feedRoute);
 //route for following and unfollowing other user
 app.use('/', followRoute);
 
-
-
+//route for searching user
+app.use('/', searchRoute);
 
 app.get('/', async (req, res) => {
   const cached = await redisClient.get('ping');
