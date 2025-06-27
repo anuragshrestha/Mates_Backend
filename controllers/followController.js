@@ -1,3 +1,4 @@
+
 const { followUser, unfollowUser } = require("../models/followModel");
 const redisClient = require("../utils/redis");
 const { getAllFollowees, getPosts, getUserData } = require("../models/homeFeedModel");
@@ -84,7 +85,7 @@ const follow = async (req, res) => {
  *
  * @param {*} req
  * @param {*} res
- * @returns {Object} {success: bool, message: String}
+ * @returns //{success: bool, message: String}
  */
 
 const unfollow = async (req, res) => {

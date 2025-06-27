@@ -2,7 +2,7 @@ const pool = require('../database/db');
 
 require('dotenv').config();
 
-const searchUser = async(name) => {
+const searchUser = async(name, limit, offset) => {
 
     const text = name.toLowerCase();
 
@@ -26,9 +26,9 @@ const searchUser = async(name) => {
           ELSE 1
          END,
          score DESC
-         LIMIT 10;
+         LIMIT $2 OFFSET $3;
         `,
-        [text]
+        [text, limit, offset]
       );
 
       return result.rows;
