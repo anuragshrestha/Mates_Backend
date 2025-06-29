@@ -5,14 +5,14 @@ const {getFeed, likePost, unLikePost} = require('../controllers/homeFeedControll
 
 
 //route to fetch posts for Around you Screen
-router.get('/aroundyou-feed', verifyJWT(jwtVerifier), getFeed);
+router.get('/feeds/aroundyou', verifyJWT(jwtVerifier), getFeed);
 
 //route to like a post
-router.post('/like-post',verifyJWT(jwtVerifier), likePost);
+router.post('/posts/:postId/like',verifyJWT(jwtVerifier), likePost);
 
 
 //route to unlike a post
-router.delete('/unlike-post', verifyJWT(jwtVerifier), unLikePost);
+router.delete('/posts/:postId/like', verifyJWT(jwtVerifier), unLikePost);
 
 
 

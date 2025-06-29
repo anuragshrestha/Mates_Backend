@@ -13,7 +13,7 @@ const follow = async (req, res) => {
 
   //retrives the follower_id from jwt
   const follower_id = req.user?.username?.trim();
-  const followee_id = req.body.followee_id?.trim();
+  const followee_id = req.params.targetUserId;
 
   //checks if both the follower_id and followee_id are provided
   if (!follower_id || !followee_id) {
@@ -64,7 +64,8 @@ const follow = async (req, res) => {
         userData = await getUserData(follower_id);
       }
 
-    
+      //delete the cache for target user profile 
+      await redisClient.del(`targetUser:${followee_id}`);
 
       return res
         .status(200)
@@ -93,7 +94,7 @@ const unfollow = async (req, res) => {
     
   //extracts follower_id from jwt
   const follower_id = req.user?.username?.trim();
-  const followee_id = req.body.followee_id?.trim();
+  const followee_id = req.params.targetUserId;
 
   //checks if both follower id and followee id are provided
   if (!follower_id || !followee_id) {
@@ -135,7 +136,10 @@ const unfollow = async (req, res) => {
        if(userData == undefined){
          userData = await getUserData(follower_id);
        }
-
+       
+      //delete the cache for target user profile 
+      await redisClient.del(`targetUser:${followee_id}`);
+      
       console.log("Successfully unfollowed the user");
       return res
         .status(200)

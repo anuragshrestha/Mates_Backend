@@ -5,11 +5,11 @@ const {verifyJWT, jwtVerifier} = require('../middlewares/verifyJWT');
 
 
 //route to follow user
-router.post('/follow', verifyJWT(jwtVerifier), follow);
+router.post('/users/:targetUserId/follow', verifyJWT(jwtVerifier), follow);
 
 
 //route to unfollow user
-router.delete('/unfollow', verifyJWT(jwtVerifier), unfollow)
+router.delete('/users/:targetUserId/follow', verifyJWT(jwtVerifier), unfollow)
 
 
 module.exports = router;

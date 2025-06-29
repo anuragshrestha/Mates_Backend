@@ -106,7 +106,7 @@ const getFeed = async(req, res) => {
 const likePost = async(req, res) => {
 
   const user_id = req.user?.username?.trim();
-  const post_id = req.body.post_id;
+  const post_id = req.params.postId;
 
   console.log('user id is: ', user_id);
   
@@ -133,7 +133,7 @@ const likePost = async(req, res) => {
 const unLikePost = async(req, res) => {
 
   const user_id = req.user?.username?.trim();
-  const post_id = req.body.post_id;
+  const post_id = req.params.postId;
 
 
   try{

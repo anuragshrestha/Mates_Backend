@@ -12,6 +12,7 @@ const {PutItemCommand, DynamoDBClient} = require('@aws-sdk/client-dynamodb');
 const getUserEmail = require('../utils/getCognitoUserEmail');
 const pool = require('../database/db');
 const { v4: uuidv4} = require('uuid');
+const redisClient = require('../utils/redis');
 
 
 require('dotenv').config();
@@ -98,7 +99,11 @@ const createPost = async(req, res) => {
             },
             ConditionExpression: "attribute_not_exists(post_id)"
         }));
+
         
+        //delete the cache for user profile
+        await redisClient.del(`targetUser:${username}`);
+
         console.log('Successfully created and stored the post ', post_id);
         
         return res.status(201).json({success: true, postId: post_id});

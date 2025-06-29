@@ -79,7 +79,8 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
     const hasFollowee = followee_ids.length > 0;
     
 
-    //query all the post and the full name, image url if the poster user id matches with the user id in users table
+    //query all the post and the full name, image url of the corresponsing user who posts we fetch 
+    // if the poster user id matches with the user id in users table
     let query = `
      SELECT p.*, u.full_name, u.profile_image_url
      FROM posts p
@@ -313,5 +314,7 @@ module.exports = {
     addLikes,
     deleteLikes,
     incrementLikesCount,
-    decrementLikesCount
+    decrementLikesCount,
+    getPostStatsFromDynamoDB,
+    getUserLikedPost
 }

@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 
-router.get('/search-user', searchName);
+router.get('/users/search', searchName);
 
 module.exports = router
 
