@@ -66,7 +66,9 @@ const follow = async (req, res) => {
 
       //delete the cache for target user profile 
       await redisClient.del(`targetUser:${followee_id}`);
-
+ 
+         
+      console.log("Successfully followed the user");
       return res
         .status(200)
         .json({ success: true, message: "Successfully followed" });
