@@ -6,6 +6,6 @@ const { verifyJWT, jwtVerifier } = require('../middlewares/verifyJWT');
 
 
 //router for creating a new post
-router.post('/posts', verifyJWT(jwtVerifier), upload.single('image'), createPost);
+router.post('/posts', verifyJWT(jwtVerifier), upload.array('media', 10), createPost);
 
 module.exports = router
