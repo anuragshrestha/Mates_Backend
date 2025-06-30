@@ -1,9 +1,10 @@
-const { PutObjectCommand, S3Client } = require("@aws-sdk/client-s3");
-const { PutItemCommand, DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { PutObjectCommand, S3Client, DeleteObjectsCommand } = require("@aws-sdk/client-s3");
+const { PutItemCommand, DynamoDBClient, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 const getUserEmail = require("../utils/getCognitoUserEmail");
 const pool = require("../database/db");
 const { v4: uuidv4 } = require("uuid");
 const redisClient = require("../utils/redis");
+const { json } = require("express");
 
 require("dotenv").config();
 
@@ -120,6 +121,15 @@ const createPost = async (req, res) => {
   }
 };
 
+
+
+
+/**
+ * updated the status of a specific post
+ * @param {*} req 
+ * @param {*} res 
+ * @returns bool, message
+ */
 const updatePost = async (req, res) => {
 
   const user_id = req.user?.username?.trim();
@@ -139,14 +149,18 @@ const updatePost = async (req, res) => {
 
     console.log("result: ", result);
     
-    if (result.rows === 0)
+    if (result.rowCount === 0)
       return res.status(404).json({ success: false, error: "No post found" });
 
+
+    //checks if the userId matches with the id of the post
     if (result.rows[0].user_id != user_id)
       return res
         .status(403)
         .json({ success: false, error: "unauthorized user" });
 
+
+    //query to update the post
     await pool.query(
       `
       UPDATE posts SET status = $1 WHERE post_id = $2`,
@@ -163,7 +177,79 @@ const updatePost = async (req, res) => {
   }
 };
 
+
+const deletePost = async(req, res) => {
+
+  const user_id = req.user?.username?.trim();
+  const postId = req.params.postId;
+
+  try{
+
+    const result = await pool.query(`SELECT user_id, media_urls FROM posts WHERE post_id = $1`, [postId]);
+
+    if(result.rowCount === 0) return res.status(404).json({success: false, error: "No post found"});
+
+    if(result.rows[0].user_id != user_id) return res.status(403).json({success: false, error: "unathorized user"});
+
+    let mediaUrls = result.rows[0].media_urls;
+    console.log("result: ", result);
+    
+    if(typeof mediaUrls === 'string'){
+      mediaUrls = JSON.parse(mediaUrls);
+      console.log('its a string type');
+    }
+     mediaUrls = mediaUrls || [];
+
+    //Deletes the posts with post_id from the posts table 
+    await pool.query(
+      `DELETE FROM posts WHERE post_id = $1`,
+      [postId]
+    );
+
+    //map each media and stores its key
+    const objectKeys = mediaUrls.map(media => ({
+        Key: media.url.split(`amazonaws.com/`)[1]
+    }));
+
+
+    //Delete all the media from the S3 if exits
+    if(objectKeys.length > 0){
+      await s3.send(
+          new DeleteObjectsCommand({
+            Bucket: process.env.AWS_POST_BUCKET_NAME,
+            Delete:{
+            Objects: objectKeys
+            }
+          })
+        );
+    }
+ 
+
+    //Deletes the like/comment counts from DynamoDB
+    await dynamodb.send(
+      new DeleteItemCommand({
+        TableName: process.env.AWS_DYNAMODB_TABLE_NAME,
+        Key: {post_id: {S: postId}}
+      })
+    );
+
+     console.log('successfully deleted the post');
+     return res.status(200).json({success: true, message: 'Successfully deleted post'})
+     
+  }catch(error){
+
+     console.log('failed to delete the post ', error.message);   
+     return res.status(500).json({success: false, error: error.message});
+  }
+}
+
+
+
+
+
+
 module.exports = {
   createPost,
-  updatePost
+  updatePost,
+  deletePost
 };
