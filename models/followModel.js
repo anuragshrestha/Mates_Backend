@@ -1,5 +1,7 @@
 const pool = require("../database/db");
 
+require('dotenv').config();
+
 /**
  * Querys from follows table and checks if the follower has already
  * followed the followee. If so then it returns True
