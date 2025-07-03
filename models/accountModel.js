@@ -28,12 +28,15 @@ const fetchUserPost = async(userId, limit, offset) => {
 
         const posts = result.rows;
 
+        if (posts.length === 0) return [];
+
+        
         const postIds = posts.map(post => post.post_id.toLowerCase());
 
         //fetches the likes and comment counts for each post
         // and all the post that the user has liked
         const [fetchLikesComments, likedPost] = await Promise.all([
-            getPostStatsFromDynamoDB(userId),
+            getPostStatsFromDynamoDB(postIds),
             getUserLikedPost(userId, postIds)
         ]);
 
@@ -47,10 +50,10 @@ const fetchUserPost = async(userId, limit, offset) => {
 
         return mergePost;
     }catch(error){
-        throw new Error("Error fetching user posts: ", error.message); 
+        throw new Error(`Error fetching user posts: ${error.message}`); 
     }
 }
 
-module.exposts = {
+module.exports = {
     fetchUserPost
 }
