@@ -21,8 +21,9 @@ const {
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
   GlobalSignOutCommand,
+  ChangePasswordCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
-
+const {verifyJWT, jwtVerifier} = require("../middlewares/verifyJWT");
 
 
 const pool = require("../database/db");
@@ -405,23 +406,14 @@ router.post('/confirm-forgot-password', async(req, res) => {
  * error.
  */
 
-router.post('/signout', async(req, res) => {
+router.post('/signout', verifyJWT(jwtVerifier),  async(req, res) => {
 
-  const authHeader = req.headers['authorization'];
-  const accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  const accessToken = req.headers['authorization'].split(' ')[1];
+
 
 
   console.log('hit signout api');
   
-
-  //checks if access token is empty
-  if(!accessToken){
-    return res.status(400).json({
-      success: false,
-      error: 'Please provide access token'
-    });
-  }
-
   const params = {
     AccessToken: accessToken
   };
@@ -448,7 +440,42 @@ router.post('/signout', async(req, res) => {
 });
 
 
+router.post('/change-password', verifyJWT(jwtVerifier), async(req, res) => {
 
+  const {currentPassword, newPassword} = req.body;
+
+  //extracts the access token
+  const accessToken = req.headers.authorization.split(" ")[1];
+
+  if(!currentPassword || !newPassword) {
+    return res.status(400).json({success: false, error: "Current and new passowrd are required"});
+  }
+
+   const params = {
+    AccessToken: accessToken,
+    PreviousPassword: currentPassword,
+    ProposedPassword: newPassword
+   };
+
+   try{
+
+    const command = new ChangePasswordCommand(params);
+    const response = await cognitoClient.send(command);
+
+    console.log('successfully changed the password: ', newPassword);
+    
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully changed password"
+    })
+   }catch(error){
+     console.error('failed to change password: ', error);
+     return res.status(500).json({success: false, error: error.message});
+   }
+
+
+})
 
 
 module.exports = router;
