@@ -10,7 +10,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
-const upload = require('../middlewares/signUp');
+const upload = require('../middlewares/uploadImage');
 const authController = require('../controllers/signUpController');
 const {
   CognitoIdentityProviderClient,
