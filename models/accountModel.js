@@ -1,7 +1,22 @@
 const pool = require("../database/db");
 const { getPostStatsFromDynamoDB, getUserLikedPost } = require("./homeFeedModel");
+const {DynamoDBClient} = require('@aws-sdk/client-dynamodb');
+const  {DynamoDBDocumentClient} = require('@aws-sdk/lib-dynamodb');
+const {S3Client, PutObjectCommand} = require('@aws-sdk/client-s3');
+const path = require("path");
 
 require('dotenv').config();
+
+
+const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials:{
+     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    }
+});
+
+
 
 
 
@@ -30,7 +45,7 @@ const fetchUserPost = async(userId, limit, offset) => {
 
         if (posts.length === 0) return [];
 
-        
+
         const postIds = posts.map(post => post.post_id.toLowerCase());
 
         //fetches the likes and comment counts for each post
@@ -54,6 +69,56 @@ const fetchUserPost = async(userId, limit, offset) => {
     }
 }
 
+
+
+
+const updateUserData = async(user_id, full_name,major, school_year, file) => {
+
+     try{
+       const result = await pool.query(
+        `SELECT profile_image_url FROM users
+         WHERE user_id = $1
+        `, [user_id]
+       );
+
+       //extracts the profile image url
+       const image_url = result.rows[0]?.profile_image_url;
+
+        if (!image_url) {
+          throw new Error("Profile image URL not found for user.");
+        }
+
+       //extract the key from the url
+       const key = image_url.split(`amazonaws.com/`)[1];
+      
+       const updateComand = new PutObjectCommand({
+         Bucket: process.env.AWS_BUCKET_NAME,
+         Key: key,
+         Body: file.buffer,
+         ContentType: file.mimetype,
+        ACL: 'public-read'
+       });
+
+       await s3.send(updateComand);
+
+       await pool.query(
+        `UPDATE users 
+         SET full_name = $1, 
+           major = $2,
+           school_year = $3   
+          WHERE user_id = $4     
+        `, [full_name, major, school_year, user_id]
+       )
+
+     }catch(error) {
+       console.error('Error in updateUserData function: ', error);
+       throw new Error("Failed to update user data.");
+     }
+}
+
+
+
 module.exports = {
-    fetchUserPost
+    fetchUserPost,
+    updateUserData
 }
