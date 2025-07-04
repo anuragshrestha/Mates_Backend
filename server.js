@@ -45,6 +45,9 @@ app.use('/', userProfileRoute);
 //route for user account screen
 app.use('/', accountProfile);
 
+
+
+
 app.get('/', async (req, res) => {
   const cached = await redisClient.get('ping');
   if (cached) return res.send(`Cache hit: ${cached}`);
