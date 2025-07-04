@@ -5,6 +5,7 @@ const  {DynamoDBDocumentClient} = require('@aws-sdk/lib-dynamodb');
 const {S3Client, PutObjectCommand} = require('@aws-sdk/client-s3');
 const path = require("path");
 
+
 require('dotenv').config();
 
 
@@ -71,6 +72,52 @@ const fetchUserPost = async(userId, limit, offset) => {
 }
 
 
+/**
+ * Fetches the user personal info from users table
+ * @param {} userId 
+ * @returns user data such as name, email, major etc
+ */
+const fetchUserData = async(userId) => {
+   
+  try{
+    const result = await pool.query(
+      `SELECT * FROM users
+      WHERE user_id = $1`,
+      [userId]
+    );
+
+    const data = result.rows[0];
+
+    return data;
+
+  }catch(error){
+    console.error('failed to fetch user data: ', error);
+    throw new Error(`Error fetching user data: ${error.message}`);
+  }
+}
+
+
+/**
+ * Extacts the followers count, following count and post count
+ * of the user
+ * @param {String} user_id 
+ * @returns {object} followersCount, followingCount, postsCount
+ */
+const fetchUserCounts = async(user_id) => {
+
+
+    const [followersRes, followingRes, postsRes] = await Promise.all([
+       pool.query(`SELECT COUNT(*) FROM follows WHERE followee_id = $1`, [user_id]),
+       pool.query(`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, [user_id]),
+       pool.query(`SELECT COUNT(*) FROM posts WHERE user_id = $1`, [user_id])       
+    ]);
+
+    return {
+        followersCount : parseInt(followersRes.rows[0].count),
+        followingCount: parseInt(followingRes.rows[0].count),
+        postCount: parseInt(postsRes.rows[0].count)
+    }
+}
 
 
 const updateUserData = async(user_id, full_name,major, school_year, file) => {
@@ -121,5 +168,7 @@ const updateUserData = async(user_id, full_name,major, school_year, file) => {
 
 module.exports = {
     fetchUserPost,
-    updateUserData
+    updateUserData,
+    fetchUserData,
+    fetchUserCounts
 }

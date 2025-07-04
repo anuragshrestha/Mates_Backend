@@ -1,4 +1,6 @@
-const { fetchUserPost, updateUserData } = require("../models/accountModel");
+const { fetchUserPost, updateUserData, fetchUserData, fetchUserCounts } = require("../models/accountModel");
+const redisClient = require('../utils/redis');
+
 
 /**
  * Fetches the posts of the user based on the user_id
@@ -6,10 +8,11 @@ const { fetchUserPost, updateUserData } = require("../models/accountModel");
  * @param {*} res
  * @returns post with limit
  */
-const getUserPost = async (req, res) => {
+const getUserInfo = async (req, res) => {
   const userId = req.user?.username;
   const limit = parseInt(req.query.limit) || 6;
   const offset = parseInt(req.query.offset) || 0;
+
 
   if (!userId) {
     return res.status(400).json({
@@ -18,13 +21,37 @@ const getUserPost = async (req, res) => {
     });
   }
 
+
+     const userKey = `user:${userId}`;
+     const cachedUser = await redisClient.get(userKey);
+     let userData;
+
   try {
     const posts = await fetchUserPost(userId, limit, offset);
+    
+    //checks if the user data is cached
+    if(cachedUser){
+      userData = JSON.parse(cachedUser);
+    }else{
+      userData = await fetchUserData(userId);
+
+      if(userData != undefined){
+          await redisClient.set(userKey, JSON.stringify(userData), 'EX', 604800);
+      }
+    }
+
+    const userCounts = await fetchUserCounts(userId);
+
+    console.log('user counts: ', userCounts);
+    
+
     return res
       .status(200)
       .json({
         success: true,
         message: "Successfully fetched post",
+        userData: userData,
+        userCounts: userCounts,
         posts: posts,
       });
   } catch (error) {
@@ -92,6 +119,6 @@ const updateUserProfile = async (req, res) => {
 };
 
 module.exports = {
-  getUserPost,
+  getUserInfo,
   updateUserProfile,
 };

@@ -6,11 +6,6 @@
 const pool = require('../database/db');
 const {getUserLikedPost, getPostStatsFromDynamoDB} = require("../models/homeFeedModel");
 
-//fetch followers
-//fetch post counts
-//fetch posts
-//check if isFoolowing, hasFollowed
-
 
 /**
  * Extacts the followers count, following count and post count

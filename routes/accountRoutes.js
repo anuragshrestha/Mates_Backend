@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const {verifyJWT, jwtVerifier} = require('../middlewares/verifyJWT');
-const {getUserPost, updateUserProfile} = require('../controllers/accountController');
+const {getUserInfo, updateUserProfile} = require('../controllers/accountController');
 const {sendFeedback} = require("../controllers/feedbackController");
 const {sendHelpEmail} = require("../controllers/helpSupportController");
 const upload = require('../middlewares/uploadImage')
 
 
 
-//route to get all the posts posted by the current user
-router.get('/account/posts', verifyJWT(jwtVerifier), getUserPost);
+//route to get all the posts posted by the current user and its personal info
+router.get('/account', verifyJWT(jwtVerifier), getUserInfo);
 
 
 //route to update user profile data

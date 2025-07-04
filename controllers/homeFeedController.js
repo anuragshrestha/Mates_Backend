@@ -85,7 +85,7 @@ const getFeed = async(req, res) => {
   
     
 
-      return res.status(200).json({success: true, user, posts});
+      return res.status(200).json({success: true,  posts});
 
     } catch(error){
         console.error('Error in fetching home feed: ', error);
