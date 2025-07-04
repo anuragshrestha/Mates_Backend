@@ -8,7 +8,7 @@ const { fetchUserPost, updateUserData } = require("../models/accountModel");
  */
 const getUserPost = async (req, res) => {
   const userId = req.user?.username;
-  const limit = parseInt(req.query.limit) || 9;
+  const limit = parseInt(req.query.limit) || 6;
   const offset = parseInt(req.query.offset) || 0;
 
   if (!userId) {

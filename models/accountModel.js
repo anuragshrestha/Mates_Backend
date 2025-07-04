@@ -55,7 +55,8 @@ const fetchUserPost = async(userId, limit, offset) => {
             getUserLikedPost(userId, postIds)
         ]);
 
-
+        
+        //merge each post with its likes, comment counts.
         const mergePost = posts.map(post => ({
             ...post,
             likes: fetchLikesComments[post.post_id]?.likes || 0,

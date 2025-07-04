@@ -8,11 +8,11 @@ const upload = require('../middlewares/uploadImage')
 
 
 
-//route to get user post
+//route to get all the posts posted by the current user
 router.get('/account/posts', verifyJWT(jwtVerifier), getUserPost);
 
 
-//route rto update user profile data
+//route to update user profile data
 router.put('/account/user-profile', verifyJWT(jwtVerifier), upload.single('image'), updateUserProfile);
 
 //route to send feedback to the mates
