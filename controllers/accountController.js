@@ -23,24 +23,32 @@ const getUserInfo = async (req, res) => {
 
 
      const userKey = `user:${userId}`;
-     const cachedUser = await redisClient.get(userKey);
      let userData;
+     let fetchedUserDatapromise;
+     let shouldCache = false;
 
   try {
-    const posts = await fetchUserPost(userId, limit, offset);
-    
+
+    const cachedUser = await redisClient.get(userKey);
+
     //checks if the user data is cached
     if(cachedUser){
-      userData = JSON.parse(cachedUser);
+      const cachedUserData = JSON.parse(cachedUser);
+      fetchedUserDatapromise = Promise.resolve(cachedUserData);
     }else{
-      userData = await fetchUserData(userId);
-
-      if(userData != undefined){
-          await redisClient.set(userKey, JSON.stringify(userData), 'EX', 604800);
-      }
+      fetchedUserDatapromise =  fetchUserData(userId);
+      shouldCache = true
     }
 
-    const userCounts = await fetchUserCounts(userId);
+    const [userData, userCounts, posts] = await Promise.all([
+      fetchedUserDatapromise,
+      fetchUserCounts(userId),
+      fetchUserPost(userId, limit, offset)
+    ]);
+
+    if (shouldCache) {
+      await redisClient.set(userKey, JSON.stringify(userData), 'EX', 604800);
+    }
 
     console.log('user counts: ', userCounts);
     
