@@ -10,7 +10,7 @@ const redisClient = require('../utils/redis');
  */
 const getUserInfo = async (req, res) => {
   const userId = req.user?.username;
-  const limit = parseInt(req.query.limit) || 6;
+  const limit = parseInt(req.query.limit) || 2;
   const offset = parseInt(req.query.offset) || 0;
 
 
@@ -40,13 +40,15 @@ const getUserInfo = async (req, res) => {
       shouldCache = true
     }
 
-    const [userData, userCounts, posts] = await Promise.all([
+    let [userData, userCounts, posts] = await Promise.all([
       fetchedUserDatapromise,
       fetchUserCounts(userId),
       fetchUserPost(userId, limit, offset)
     ]);
 
     if (shouldCache) {
+      console.log('caching the user account profile data');
+      
       await redisClient.set(userKey, JSON.stringify(userData), 'EX', 604800);
     }
 
@@ -58,7 +60,22 @@ const getUserInfo = async (req, res) => {
         ...userCounts
       };
 
-
+    posts = posts.map(post => {
+      try {
+        return {
+          ...post,
+          media_urls: JSON.parse(post.media_urls)
+        };
+      } catch (e) {
+        console.error(`Failed to parse media_urls for post ${post.post_id}:`, post.media_urls);
+        return null;
+      }
+    }).filter(Boolean); 
+       
+      console.log("posts:", JSON.stringify(posts, null, 2));
+      
+     console.log("successfully fetched user account data: ", userProfile);
+     
     return res
       .status(200)
       .json({

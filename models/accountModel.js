@@ -42,6 +42,7 @@ const fetchUserPost = async(userId, limit, offset) => {
              LIMIT $2 OFFSET $3
             `, [userId, limit, offset]);
 
+            // console.log("Fetched posts from DB:", result.rows); 
         const posts = result.rows;
 
         if (posts.length === 0) return [];
@@ -106,7 +107,7 @@ const fetchUserData = async(userId) => {
 const fetchUserCounts = async(user_id) => {
 
 
-    const [followersRes, followingRes, postsRes] = await Promise.all([
+    let [followersRes, followingRes, postsRes] = await Promise.all([
        pool.query(`SELECT COUNT(*) FROM follows WHERE followee_id = $1`, [user_id]),
        pool.query(`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, [user_id]),
        pool.query(`SELECT COUNT(*) FROM posts WHERE user_id = $1`, [user_id])       
