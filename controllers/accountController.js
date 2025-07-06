@@ -52,14 +52,19 @@ const getUserInfo = async (req, res) => {
 
     console.log('user counts: ', userCounts);
     
+      // combine them here
+      const userProfile = {
+        ...userData,
+        ...userCounts
+      };
+
 
     return res
       .status(200)
       .json({
         success: true,
         message: "Successfully fetched post",
-        userData: userData,
-        userCounts: userCounts,
+        userProfile: userProfile,
         posts: posts,
       });
   } catch (error) {
