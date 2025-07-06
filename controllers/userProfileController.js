@@ -1,6 +1,14 @@
 const {getUserCounts, getFollowStatus, getUserPosts} = require("../models/userProfileModel");
 const redisClient = require('../utils/redis');
 
+
+
+/**
+ * Extracts the target users personal data, posts
+ * @param {*} req 
+ * @param {*} res 
+ * @returns targetId user posts, personal info
+ */
 const getUserData = async(req, res) => {
 
     const viewer_id = req.user?.username;
@@ -22,6 +30,7 @@ const getUserData = async(req, res) => {
         if(cachedUserCounts){
            userCounts = JSON.parse(cachedUserCounts);
         } else{
+            //gets the target user followers, following and posts count
             userCounts = await getUserCounts(targetUserId);
 
             if(userCounts != undefined){

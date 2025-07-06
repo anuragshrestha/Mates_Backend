@@ -34,7 +34,16 @@ const s3 = new S3Client({
 
 
 
-const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/heif']
+const allowedTypes = ["image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/heif",
+  "image/heif",
+  "image/webp",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+]
 
 
 /**

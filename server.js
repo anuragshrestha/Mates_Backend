@@ -1,12 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const authRoutes = require('./routes/authRoutes');
-const postRoutes = require('./routes/uploadPostRoute');
+const postRoutes = require('./routes/postRoute');
 const redisClient = require('./utils/redis');
 const feedRoute = require('./routes/homeFeedRoute');
 const followRoute = require('./routes/followRoute');
 const searchRoute = require('./routes/searchUsersRoute');
 const userProfileRoute = require('./routes/userProfileRoute');
+const accountProfile = require('./routes/accountRoutes');
+
+
 
 require("dotenv").config();
 
@@ -39,6 +42,12 @@ app.use('/', searchRoute);
 
 //route for user profile
 app.use('/', userProfileRoute);
+
+//route for user account screen
+app.use('/', accountProfile);
+
+
+
 
 app.get('/', async (req, res) => {
   const cached = await redisClient.get('ping');
