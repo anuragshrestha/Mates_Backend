@@ -310,15 +310,15 @@ router.post('/forgot-password', async(req, res) => {
   
   const {username} = req.body;
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
+  // const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
   
-  //checks if the email is a valid school email: .edu
-  if(!emailRegex.test(username)){
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid email format. Please provide a valid school email.'
-    })
-  };
+  // //checks if the email is a valid school email: .edu
+  // if(!emailRegex.test(username)){
+  //   return res.status(400).json({
+  //     success: false,
+  //     error: 'Invalid email format. Please provide a valid school email.'
+  //   })
+  // };
 
   const params = {
     ClientId : CLIENT_ID,
