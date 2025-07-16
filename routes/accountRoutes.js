@@ -13,7 +13,7 @@ router.get('/account', verifyJWT(jwtVerifier), getUserInfo);
 
 
 //route to update user profile data
-router.put('/account/user-profile', verifyJWT(jwtVerifier), upload.single('image'), updateUserProfile);
+router.put('/account/edit-profile', verifyJWT(jwtVerifier), upload.single('image'), updateUserProfile);
 
 //route to send feedback to the mates
 router.post('/account/feedback', verifyJWT(jwtVerifier), sendFeedback);
