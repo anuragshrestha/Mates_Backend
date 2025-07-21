@@ -2,7 +2,7 @@ const pool = require('../database/db');
 
 require('dotenv').config();
 
-const searchUser = async(name, limit, offset) => {
+const searchUser = async(name, limit, offset, currentUserId) => {
 
     const text = name.toLowerCase();
 
@@ -20,6 +20,7 @@ const searchUser = async(name, limit, offset) => {
          similarity(full_name, $1) >= 0.2 OR
          similarity(university_name, $1) >= 0.2
         )
+        AND user_id != $4
         ORDER BY
          CASE
           WHEN full_name ILIKE $1 || '%' OR university_name ILIKE $1 || '%' THEN 0
@@ -28,7 +29,7 @@ const searchUser = async(name, limit, offset) => {
          score DESC
          LIMIT $2 OFFSET $3;
         `,
-        [text, limit, offset]
+        [text, limit, offset, currentUserId]
       );
 
       return result.rows;
