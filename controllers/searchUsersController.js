@@ -2,7 +2,7 @@ const {searchUser} = require('../models/searchUsersModel');
 
 const searchName = async(req, res, next) => {
 
-    const {query, limit = 10, offset = 0, currentUserId} = req.query;
+    const {query, limit = 10, offset = 0} = req.query;
 
     try{
 
