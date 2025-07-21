@@ -8,3 +8,7 @@ node_modules
 migrateUsers.js
 
 reset-db.sh
+
+
+
+.DS_Store

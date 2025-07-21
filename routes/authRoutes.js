@@ -440,6 +440,10 @@ router.post('/signout', verifyJWT(jwtVerifier),  async(req, res) => {
 });
 
 
+
+/**
+ * POST route for changing the password
+ */
 router.post('/change-password', verifyJWT(jwtVerifier), async(req, res) => {
 
   const {currentPassword, newPassword} = req.body;
