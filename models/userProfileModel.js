@@ -53,8 +53,9 @@ const getFollowStatus = async(viewer_id, targetUserId) => {
 
 const getUserPosts = async(viewer_id, targetUserId) => {
 
-    const results = await pool.query(`
-        SELECT * FROM posts
+       const results = await pool.query(`
+        SELECT post_id, media_urls, created_at, status
+        FROM posts
         WHERE user_id = $1
         ORDER BY created_at DESC
         LIMIT 4` 

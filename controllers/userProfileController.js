@@ -25,19 +25,23 @@ const getUserData = async(req, res) => {
     try{
 
         //checks the Redis Cache
-        const cachedUserCounts = await redisClient.get(targetUserKey);
+        // const cachedUserCounts = await redisClient.get(targetUserKey);
 
-        if(cachedUserCounts){
-           userCounts = JSON.parse(cachedUserCounts);
-        } else{
-            //gets the target user followers, following and posts count
-            userCounts = await getUserCounts(targetUserId);
+        // if(cachedUserCounts){
+        //    userCounts = JSON.parse(cachedUserCounts);
+        // } else{
+        //     //gets the target user followers, following and posts count
+        //     userCounts = await getUserCounts(targetUserId);
 
-            if(userCounts != undefined){
-                //cached the userCounts data for 10 minutes
-               await redisClient.set(targetUserKey, JSON.stringify(userCounts), 'EX', 600);
-            }
-        }
+        //     if(userCounts != undefined){
+        //         //cached the userCounts data for 10 minutes
+        //        await redisClient.set(targetUserKey, JSON.stringify(userCounts), 'EX', 600);
+        //     }
+        // }
+
+
+        //gets the target user followers, following and posts count
+        userCounts = await getUserCounts(targetUserId);
 
         //followStatus includes isFollowing and isFollowed boolean
         const followStatus = await getFollowStatus(viewer_id, targetUserId);
