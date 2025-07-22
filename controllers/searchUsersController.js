@@ -13,6 +13,8 @@ const searchName = async(req, res, next) => {
        }
 
         const users = await searchUser(query, parseInt(limit), parseInt(offset), currentUserId);
+        console.log(`found the user: ${users}`);
+        
         res.status(200).json({success: true, users});
     }catch(error){
         next(error)

@@ -21,7 +21,8 @@ const {
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
   GlobalSignOutCommand,
-  ChangePasswordCommand
+  ChangePasswordCommand,
+  GetUserCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
 const {verifyJWT, jwtVerifier} = require("../middlewares/verifyJWT");
 
@@ -431,12 +432,49 @@ router.post('/signout', verifyJWT(jwtVerifier),  async(req, res) => {
     });
   }catch(err){
     console.error("Signout error:", err);
+
+      // If token already revoked, consider it a successful signout
+      // if (err.name === 'NotAuthorizedException' && err.message === 'Access Token has been revoked') {
+      //   return res.status(200).json({
+      //     success: true,
+      //     message: 'User already signed out (token revoked).',
+      //   });
+      // }
+
     res.status(400).json({
       success: false,
       error: err.message || 'Failed to signedout user.'
     });
   }
   
+});
+
+/**
+ * Checks if the accessToken is revoked
+ */
+// GET /auth/validate
+router.get('/auth/validate', async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: "No token provided" });
+  }
+
+  try {
+    const command = new GetUserCommand({ AccessToken: token });
+    await cognitoClient.send(command);
+
+    // If successful, token is valid
+    res.status(200).json({ success: true, message: "Token is valid" });
+  } catch (err) {
+    console.error("Token invalid:", err.name, err.message);
+
+    if (err.name === "NotAuthorizedException") {
+      return res.status(401).json({ success: false, error: "Token revoked or invalid" });
+    }
+
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 

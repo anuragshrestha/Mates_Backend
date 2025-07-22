@@ -1,3 +1,8 @@
+/**
+ * Route for searching other user in the search screen.
+ */
+
+
 const {searchName} = require('../controllers/searchUsersController');
 const express = require('express');
 const {jwtVerifier, verifyJWT} = require('../middlewares/verifyJWT');

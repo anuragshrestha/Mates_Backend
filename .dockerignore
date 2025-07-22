@@ -5,3 +5,6 @@ uploads
 logs
 coverage
 build
+
+
+ # docker exec -it mates-postgres psql -U anuragshrestha -d mates_app
