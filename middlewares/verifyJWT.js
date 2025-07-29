@@ -8,11 +8,11 @@ const jwtVerifier = CognitoJwtVerifier.create({
   userPoolId: process.env.COGNITO_USER_POOL_ID,
   tokenUse: "access",
   clientId: process.env.COGNITO_CLIENT_ID,
-  // cache: true, // enable in-memory cache
-  // jwksCache: {
-  //   store: {}, // use an in-memory store
-  //   maxAge: 600000, // optional: 10 minutes
-  // }
+  cache: true, // enable in-memory cache
+  jwksCache: {
+    store: {}, // use an in-memory store
+    maxAge: 600000, // optional: 10 minutes
+  }
 });
 
 // Express middleware to verify JWT

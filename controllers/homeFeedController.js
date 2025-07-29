@@ -78,14 +78,15 @@ const getFeed = async(req, res) => {
       }
 
     
-        console.log('university name is: ', user.university_name);
-        console.log('userid is: ', userId);
+        // console.log('university name is: ', user.university_name);
+        // console.log('userid is: ', userId);
         
         posts = await getPosts(followees, user.university_name, userId);
   
     
-
-      return res.status(200).json({success: true,  posts});
+       console.log('posts: ', posts);
+       
+      return res.status(200).json({success: true, posts: posts, user_id: userId});
 
     } catch(error){
         console.error('Error in fetching home feed: ', error);
