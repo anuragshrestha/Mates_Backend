@@ -82,7 +82,16 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
     //query all the post and the full name, image url of the corresponsing user who posts we fetch 
     // if the poster user id matches with the user id in users table
     let query = `
-     SELECT p.*, u.full_name, u.profile_image_url
+     SELECT         
+        p.post_id,
+        p.email,
+        p.media_urls::jsonb AS media_urls, 
+        p.created_at,
+        p.status,
+        p.user_id,
+        p.university_name,
+        u.full_name,
+        u.profile_image_url
      FROM posts p
      JOIN users u ON p.user_id = u.user_id 
     `;
