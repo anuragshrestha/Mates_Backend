@@ -114,7 +114,7 @@ const createPost = async (req, res) => {
 
     console.log("Successfully created and stored the post ", post_id);
 
-    return res.status(200).json({ success: true, postId: post_id });
+    return res.status(200).json({ success: true, message: 'Successfully created the post' });
   } catch (error) {
     console.error("Error creating a new post ", error);
     return res.status(500).json({ success: false, error: error.message });
