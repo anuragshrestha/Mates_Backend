@@ -189,6 +189,7 @@ const deletePost = async(req, res) => {
 
     if(result.rowCount === 0) return res.status(404).json({success: false, error: "No post found"});
 
+    //user id needs to match with the post user id
     if(result.rows[0].user_id != user_id) return res.status(403).json({success: false, error: "unathorized user"});
 
     let mediaUrls = result.rows[0].media_urls;

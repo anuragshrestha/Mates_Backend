@@ -73,7 +73,7 @@ const getAllFollowees = async(user_id) => {
  * Then fetch the likes and comments count for each post, merge it and returns 
  * all the 20 posts
 */
-const getPosts = async(followee_ids, university_name, current_userId) => {
+const getPosts = async(followee_ids, university_name, current_userId, limit = 4, offset = 0) => {
 
     //check if the user is following any other users
     const hasFollowee = followee_ids.length > 0;
@@ -118,15 +118,33 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
     const excludeConditions = `p.user_id != ${userPlaceHolder}`;
 
     
-    query += `
-     WHERE (${conditions.join(' OR ')}) AND ${excludeConditions}
-     ORDER BY p.created_at DESC
-     LIMIT 20
-    `
+    // Base WHERE clause without ORDER BY for count query
+    const whereClause = `WHERE (${conditions.join(' OR ')}) AND ${excludeConditions}`;
+    
+    // Full query clause with ORDER BY for paginated query
+    const fullQueryClause = `${whereClause} ORDER BY p.created_at DESC`;
 
-    const result = await pool.query(query, values);
+     // Get total count for pagination metadata
+    const countQuery = `
+        SELECT COUNT(*) as total_count
+        FROM posts p
+        JOIN users u ON p.user_id = u.user_id 
+        ${whereClause}
+    `;
+    
+    // Get paginated results
+    const paginatedQuery = query + fullQueryClause + ` LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    
+    // Add limit and offset to values
+    const paginatedValues = [...values, limit, offset];
 
-    const posts = result.rows;
+    const [countResult, postsResult] = await Promise.all([
+        pool.query(countQuery, values),
+        pool.query(paginatedQuery, paginatedValues)
+    ]);
+
+    const totalCount = parseInt(countResult.rows[0].total_count);
+    const posts = postsResult.rows;
 
     //extracts the post ids only
     const postIds = posts.map(post => post.post_id.toLowerCase());
@@ -145,7 +163,10 @@ const getPosts = async(followee_ids, university_name, current_userId) => {
        hasLiked: likedPost.has(post.post_id)
     }));
 
-    return mergePost;
+    return {
+       posts: mergePost,
+       totalCount: totalCount
+    };
 }
 
 

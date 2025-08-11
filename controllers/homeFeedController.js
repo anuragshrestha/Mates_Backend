@@ -1,161 +1,168 @@
-const  {getUserData, getAllFollowees, getPosts, addLikes, deleteLikes} = require("../models/homeFeedModel");
-const redisClient = require('../utils/redis')
-
-
+const {
+  getUserData,
+  getAllFollowees,
+  getPosts,
+  addLikes,
+  deleteLikes,
+} = require("../models/homeFeedModel");
+const redisClient = require("../utils/redis");
 
 /**
  * Fetched all the latest 20 post for the home feed.
- * @param {*} req 
- * @param {*} res 
+ * @param {*} req
+ * @param {*} res
  * @returns latest 20 posts
  */
-const getFeed = async(req, res) => {
+const getFeed = async (req, res) => {
+  try {
+    //Retrives the user id.
+    const userId = req.user?.username?.trim();
+    let { limit = 6, page = 1 } = req.query;
+    limit = parseInt(limit);
+    page = parseInt(page);
 
-    try{
+    const offset = (page - 1) * limit;
 
-       //Retrives the user id.
-       const userId = req.user?.username?.trim();
-       
+    //checks if there is a userId in request. If not then returns 401 error.
+    if (!userId) return res.status(401).json({ message: "Unauthorized user" });
 
-       //checks if there is a userId in request. If not then returns 401 error.
-       if(!userId) return res.status(401).json({message: "Unauthorized user"})
+    console.log(
+      `Fetching feed - Page: ${page}, Limit: ${limit}, Offset: ${offset}`
+    );
 
-      const userKey = `user:${userId}`;
-      const followeeKey = `followee:${userId}`;
-      const postsKey = `feed:${userId}`;
-  
-      
-      //Try to get the cache from redis
-      const [cachedUser, cachedFollowees] = await Promise.all([
-         redisClient.get(userKey),
-         redisClient.get(followeeKey),
-      ]);
-     
+    const userKey = `user:${userId}`;
+    const followeeKey = `followee:${userId}`;
+    const postsKey = `feed:${userId}`;
 
-      let user, followees, posts;
+    //Try to get the cache from redis
+    const [cachedUser, cachedFollowees] = await Promise.all([
+      redisClient.get(userKey),
+      redisClient.get(followeeKey),
+    ]);
 
+    let user, followees, posts;
 
-      /**
-       * Checks if there is cached user, followees and posts. If there is already cache data in redis
-       * then parses it in JSON and returns the user and posts at the end.
-       * If any of the data is not cache then it calls the corresponding functions from model and queries
-       * the data and cache it in redis.
-       */
+    /**
+     * Checks if there is cached user, followees and posts. If there is already cache data in redis
+     * then parses it in JSON and returns the user and posts at the end.
+     * If any of the data is not cache then it calls the corresponding functions from model and queries
+     * the data and cache it in redis.
+     */
 
-      if(cachedUser){
-         user = JSON.parse(cachedUser);
-         console.log('user is cached ', user);
-         
-      }else{
-         user = await getUserData(userId);
+    if (cachedUser) {
+      user = JSON.parse(cachedUser);
+      console.log("user is cached ", user);
+    } else {
+      user = await getUserData(userId);
 
-        if(user != undefined){
-          //cache it for 1 week
-          console.log('storing user in redis: ', user);
-          
-          await redisClient.set(userKey, JSON.stringify(user), 'EX', 604800);
-        } else{
-          console.log('user is defined: ', user);
-          
-        }
+      if (user != undefined) {
+        //cache it for 1 week
+        console.log("storing user in redis: ", user);
+
+        await redisClient.set(userKey, JSON.stringify(user), "EX", 604800);
+      } else {
+        console.log("user is defined: ", user);
       }
-
-      if(cachedFollowees){
-        followees = JSON.parse(cachedFollowees);
-        console.log('followese is cached: ', followees);
-        
-      }else{
-        followees = await getAllFollowees(userId);
-        if(followees != undefined){
-          //cache it for 1 day.
-           console.log('storing followees in redis: ', followees);
-          await redisClient.set(followeeKey, JSON.stringify(followees), 'EX', 86400);
-        }else{
-          console.log('followees is defined ', followees);
-          
-        }
-
-      }
-
-    
-        // console.log('university name is: ', user.university_name);
-        // console.log('userid is: ', userId);
-        
-        posts = await getPosts(followees, user.university_name, userId);
-  
-    
-       console.log('posts: ', posts);
-       
-      return res.status(200).json({success: true, posts: posts, user_id: userId});
-
-    } catch(error){
-        console.error('Error in fetching home feed: ', error);
-        return res.status(500).json({success: false, error: error.message})
     }
 
-}
+    if (cachedFollowees) {
+      followees = JSON.parse(cachedFollowees);
+      console.log("followese is cached: ", followees);
+    } else {
+      followees = await getAllFollowees(userId);
+      if (followees != undefined) {
+        //cache it for 1 day.
+        console.log("storing followees in redis: ", followees);
+        await redisClient.set(
+          followeeKey,
+          JSON.stringify(followees),
+          "EX",
+          86400
+        );
+      } else {
+        console.log("followees is defined ", followees);
+      }
+    }
 
+    // console.log('university name is: ', user.university_name);
+    // console.log('userid is: ', userId);
 
+    const result = await getPosts(
+      followees,
+      user.university_name,
+      userId,
+      limit,
+      offset
+    );
+    posts = result.posts;
+    const totalPosts = result.totalCount;
+
+    const hasMore = offset + posts.length < totalPosts;
+
+    console.log("posts: ", posts);
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+        posts: posts,
+        user_id: userId,
+        currentPage: page,
+        limit: limit,
+        totalPosts: totalPosts,
+        hasMore: hasMore,
+      });
+  } catch (error) {
+    console.error("Error in fetching home feed: ", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
 
 /**
  * Calls the addLikes to add a new like to a post
- * by the user. 
- * @param {*} req 
- * @param {*} res 
+ * by the user.
+ * @param {*} req
+ * @param {*} res
  * @returns success: true else false
  */
-const likePost = async(req, res) => {
-
+const likePost = async (req, res) => {
   const user_id = req.user?.username?.trim();
   const post_id = req.params.postId;
 
-  console.log('user id is: ', user_id);
-  
-  try{
-       await addLikes(user_id, post_id);
-       console.log('successfully liked the post, ', post_id);    
-       return res.status(200).json({success: true, message: post_id});
-  }catch (error){
-    console.log('failed to fetched the liked posts');
-    return res.status(500).json({success: false, error: error.message});
-    
+  console.log("user id is: ", user_id);
+
+  try {
+    await addLikes(user_id, post_id);
+    console.log("successfully liked the post, ", post_id);
+    return res.status(200).json({ success: true, message: post_id });
+  } catch (error) {
+    console.log("failed to fetched the liked posts");
+    return res.status(500).json({ success: false, error: error.message });
   }
-}
-
-
+};
 
 /**
  * Calls the deletedlikes and unlike the post.
- * @param {*} req 
- * @param {*} res 
- * @returns 
+ * @param {*} req
+ * @param {*} res
+ * @returns
  */
 
-const unLikePost = async(req, res) => {
-
+const unLikePost = async (req, res) => {
   const user_id = req.user?.username?.trim();
   const post_id = req.params.postId;
 
-
-  try{
-
+  try {
     await deleteLikes(user_id, post_id);
-    console.log('successfully unliked the post, ', post_id);
-    return res.status(200).json({success: true, message: post_id});
-
-  }catch(error){
-     return res.status(500).json({success: false, error: error.message});
+    console.log("successfully unliked the post, ", post_id);
+    return res.status(200).json({ success: true, message: post_id });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
-}
-
-
-
-
-
-
+};
 
 module.exports = {
   getFeed,
   likePost,
-  unLikePost
+  unLikePost,
 };
