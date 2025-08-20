@@ -1,19 +1,20 @@
 const {
   getUserData,
   getAllFollowees,
-  getPosts,
+  getAroundYouPosts,
   addLikes,
   deleteLikes,
+  getForYouPost,
 } = require("../models/homeFeedModel");
-const redisClient = require("../utils/redis");
+
 
 /**
- * Fetched all the latest 20 post for the home feed.
+ * Fetched all the latest 6 post for the `Around you home feed`.
  * @param {*} req
  * @param {*} res
  * @returns latest 20 posts
  */
-const getFeed = async (req, res) => {
+const getAroundYouFeed = async (req, res) => {
   try {
     //Retrives the user id.
     const userId = req.user?.username?.trim();
@@ -30,64 +31,16 @@ const getFeed = async (req, res) => {
       `Fetching feed - Page: ${page}, Limit: ${limit}, Offset: ${offset}`
     );
 
-    const userKey = `user:${userId}`;
-    const followeeKey = `followee:${userId}`;
-    const postsKey = `feed:${userId}`;
-
-    //Try to get the cache from redis
-    const [cachedUser, cachedFollowees] = await Promise.all([
-      redisClient.get(userKey),
-      redisClient.get(followeeKey),
-    ]);
 
     let user, followees, posts;
 
-    /**
-     * Checks if there is cached user, followees and posts. If there is already cache data in redis
-     * then parses it in JSON and returns the user and posts at the end.
-     * If any of the data is not cache then it calls the corresponding functions from model and queries
-     * the data and cache it in redis.
-     */
-
-    if (cachedUser) {
-      user = JSON.parse(cachedUser);
-      console.log("user is cached ", user);
-    } else {
+  
       user = await getUserData(userId);
 
-      if (user != undefined) {
-        //cache it for 1 week
-        console.log("storing user in redis: ", user);
-
-        await redisClient.set(userKey, JSON.stringify(user), "EX", 604800);
-      } else {
-        console.log("user is defined: ", user);
-      }
-    }
-
-    if (cachedFollowees) {
-      followees = JSON.parse(cachedFollowees);
-      console.log("followese is cached: ", followees);
-    } else {
       followees = await getAllFollowees(userId);
-      if (followees != undefined) {
-        //cache it for 1 day.
-        console.log("storing followees in redis: ", followees);
-        await redisClient.set(
-          followeeKey,
-          JSON.stringify(followees),
-          "EX",
-          86400
-        );
-      } else {
-        console.log("followees is defined ", followees);
-      }
-    }
+    
 
-    // console.log('university name is: ', user.university_name);
-    // console.log('userid is: ', userId);
-
-    const result = await getPosts(
+    const result = await getAroundYouPosts(
       followees,
       user.university_name,
       userId,
@@ -117,6 +70,63 @@ const getFeed = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+
+/**
+ * Fetched all the latest 6 post for the `For You home feed`.
+ * @param {*} req
+ * @param {*} res
+ * @returns latest 20 posts from different university students.
+ */
+const getForYouFeed = async (req, res) => {
+
+  try {
+    const userId = req.user?.username?.trim();
+    let { limit = 6, page = 1 } = req.query;
+    limit = parseInt(limit); page = parseInt(page);
+    const offset = (page - 1) * limit;
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized user" });
+
+  
+    let user, followees;
+
+   
+    user = await getUserData(userId);
+    followees = await getAllFollowees(userId);
+   
+
+    console.log("followees: ", followees);
+    console.log('university name: ', user.university_name);
+
+    
+    
+    const { posts, totalCount } = await getForYouPost(
+      followees || [],
+      user.university_name,
+      userId,
+      limit,
+      offset
+    );
+
+    const hasMore = offset + posts.length < totalCount;
+
+    return res.status(200).json({
+      success: true,
+      posts,
+      user_id: userId,
+      currentPage: page,
+      limit,
+      totalPosts: totalCount,
+      hasMore,
+    });
+  } catch (error) {
+    console.error("Error in fetching outside feed:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+
 
 /**
  * Calls the addLikes to add a new like to a post
@@ -162,7 +172,8 @@ const unLikePost = async (req, res) => {
 };
 
 module.exports = {
-  getFeed,
+  getAroundYouFeed,
+  getForYouFeed,
   likePost,
   unLikePost,
 };
