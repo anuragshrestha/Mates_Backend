@@ -68,12 +68,12 @@ const getAllFollowees = async(user_id) => {
 
 
 /**
- * Query latest 20 posts including the poster full name and image_url from posts 
+ * Query latest 6 posts including the poster full name and image_url from posts 
  * table based on the followee_id list and university_name. 
  * Then fetch the likes and comments count for each post, merge it and returns 
- * all the 20 posts
+ * all the 6 posts
 */
-const getPosts = async(followee_ids, university_name, current_userId, limit = 4, offset = 0) => {
+const getAroundYouPosts = async(followee_ids, university_name, current_userId, limit = 6, offset = 0) => {
 
     //check if the user is following any other users
     const hasFollowee = followee_ids.length > 0;
@@ -169,6 +169,78 @@ const getPosts = async(followee_ids, university_name, current_userId, limit = 4,
     };
 }
 
+
+/**
+ * Query latest 6 posts including the poster full name and image_url from posts 
+ * table that doesnot matches the followee_id list and university_name. 
+ * Then fetch the likes and comments count for each post, merge it and returns 
+ * all the 6 posts
+*/
+const getForYouPost = async (followee_ids, university_name, current_userId, limit = 6, offset = 0) => {
+
+  const followeesArray = Array.isArray(followee_ids) ? followee_ids : [];
+
+  const queryBase = `
+    SELECT
+      p.post_id,
+      p.email,
+      p.media_urls::jsonb AS media_urls,
+      p.created_at,
+      p.status,
+      p.user_id,
+      p.university_name,
+      u.full_name,
+      u.profile_image_url
+    FROM posts p
+    JOIN users u ON p.user_id = u.user_id
+  `;
+
+
+  const whereClause = `
+    WHERE p.user_id <> ALL($1::uuid[])
+      AND p.university_name <> $2
+      AND p.user_id <> $3
+  `;
+
+  const orderLimitOffset = ` ORDER BY p.created_at DESC LIMIT $4 OFFSET $5`;
+
+  const countSql = `
+    SELECT COUNT(*) AS total_count
+    FROM posts p
+    JOIN users u ON p.user_id = u.user_id
+    ${whereClause}
+  `;
+
+  const dataSql = queryBase + whereClause + orderLimitOffset;
+
+  const countValues = [followeesArray, university_name, current_userId];
+  const dataValues  = [followeesArray, university_name, current_userId, limit, offset];
+
+  const [countResult, postsResult] = await Promise.all([
+    pool.query(countSql, countValues),
+    pool.query(dataSql, dataValues),
+  ]);
+
+  const totalCount = parseInt(countResult.rows[0].total_count, 10);
+  const posts = postsResult.rows;
+
+  // Merge likes/comments + liked flag (fix the lowercase mismatch)
+  const postIdsLower = posts.map(p => p.post_id.toLowerCase());
+  const stats = await getPostStatsFromDynamoDB(postIdsLower);
+  const likedSet = await getUserLikedPost(current_userId, postIdsLower);
+
+  const merged = posts.map(p => {
+    const pid = p.post_id.toLowerCase();
+    return {
+      ...p,
+      likes: stats[pid]?.likes ?? 0,
+      comments: stats[pid]?.comments ?? 0,
+      hasLiked: likedSet.has(pid),
+    };
+  });
+
+  return { posts: merged, totalCount };
+};
 
 
 
@@ -340,7 +412,8 @@ const decrementLikesCount = async(post_id) => {
 module.exports = {
     getUserData,
     getAllFollowees,
-    getPosts,
+    getAroundYouPosts,
+    getForYouPost,
     addLikes,
     deleteLikes,
     incrementLikesCount,
