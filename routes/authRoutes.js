@@ -329,9 +329,11 @@ router.post('/forgot-password', async(req, res) => {
   try{
     //create new command for ForgotPassword.
     const command = new ForgotPasswordCommand(params);
-
+   
     //send the command to cognito
     const response = await cognitoClient.send(command);
+    console.log('successfully sent the code');
+    
     res.status(200).json({
       success: true,
       message: 'Successfully send the code for forgot password.',
